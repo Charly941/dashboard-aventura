@@ -215,12 +215,11 @@ tr:hover td{background:#f8fafc}
     <div class="thead-row"><h3 id="abiertos-count">Files Abiertos</h3></div>
     <div class="sx"><table>
       <thead><tr>
-        <th>ID</th><th>Cliente</th><th>Viaje</th><th>Salida</th><th>Mes aper.</th>
-        <th class="num">Venta $</th><th class="num">Cobr $</th><th class="num">Saldo Cli $</th>
-        <th class="num">Venta USD</th><th class="num">Cobr USD</th><th class="num">Saldo Cli USD</th>
-        <th class="num">Costo $</th><th class="num">Pagado $</th><th class="num">Saldo Op $</th>
-        <th class="num">Costo USD</th><th class="num">Pagado USD</th><th class="num">Saldo Op USD</th>
-        <th>Res.</th><th>Cob.</th><th>Op.</th>
+        <th>ID</th><th>Cliente</th><th>Viaje</th><th>Salida</th>
+        <th class="num">Saldo Cli $</th>
+        <th class="num">Saldo Op $</th>
+        <th class="num">Saldo Cli USD</th>
+        <th class="num">Saldo Op USD</th>
       </tr></thead>
       <tbody id="t-open-detail"></tbody>
       <tfoot id="t-open-foot"></tfoot>
@@ -537,23 +536,15 @@ function initAbiertos(){
 // Renders a single file row
 function fileRow(r){
   const scP=r.saldo_cli,scU=r.saldo_cli_usd,soP=r.saldo_op,soU=r.saldo_op_usd;
-  const rb=r.cie_res?'<span class="bdg bg">✓</span>':'<span class="bdg bo">Ab</span>';
-  const cb=r.cie_cob?'<span class="bdg bg">✓</span>':'<span class="bdg bo">Ab</span>';
-  const ob=r.cie_op?'<span class="bdg bg">✓</span>':'<span class="bdg bo">Ab</span>';
   return `<tr>
     <td>${r.ID_RES}</td>
     <td><strong>${(r.NOM_CLI||'–').split(' ')[0]}</strong></td>
-    <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis">${r.DETALLE_VIAJE||'–'}</td>
-    <td>${r.FEC_SAL}</td><td>${r.mes_apertura}</td>
-    <td class="num">${fmtP(r.VENTA)}</td><td class="num">${fmtP(r.COBROS)}</td>
+    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.DETALLE_VIAJE||'–'}</td>
+    <td>${r.FEC_SAL}</td>
     <td class="num ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
-    <td class="num">${fmtU(r.VENTA_USD)}</td><td class="num">${fmtU(r.COBROS_USD)}</td>
-    <td class="num ${Math.abs(scU)>0.01?'warn':''}">${Math.abs(scU)>0.01?fmtU(scU):'–'}</td>
-    <td class="num">${fmtP(r.COSTO)}</td><td class="num">${fmtP(r.PAGOS)}</td>
     <td class="num ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
-    <td class="num">${fmtU(r.COSTO_USD)}</td><td class="num">${fmtU(r.PAGOS_USD)}</td>
+    <td class="num ${Math.abs(scU)>0.01?'warn':''}">${Math.abs(scU)>0.01?fmtU(scU):'–'}</td>
     <td class="num ${Math.abs(soU)>0.01?'warn':''}">${Math.abs(soU)>0.01?fmtU(soU):'–'}</td>
-    <td>${rb}</td><td>${cb}</td><td>${ob}</td>
   </tr>`;
 }
 
@@ -563,19 +554,12 @@ function subtotalRow(label, records){
   const cU=records.reduce((a,r)=>a+r.saldo_cli_usd,0);
   const oP=records.reduce((a,r)=>a+r.saldo_op,0);
   const oU=records.reduce((a,r)=>a+r.saldo_op_usd,0);
-  const nP=cP-oP,nU=cU-oU;
   return `<tr style="background:#eef4ff;font-size:11px;font-weight:600">
-    <td colspan="4" style="color:var(--acc);padding:5px 13px">${label} · ${records.length} files</td><td></td>
-    <td class="num"></td><td class="num"></td>
+    <td colspan="4" style="color:var(--acc);padding:5px 13px">${label} · ${records.length} files</td>
     <td class="num ${Math.abs(cP)>0.5?'warn':''}">${Math.abs(cP)>0.5?fmtP(cP):'–'}</td>
-    <td class="num"></td><td class="num"></td>
-    <td class="num ${Math.abs(cU)>0.01?'warn':''}">${Math.abs(cU)>0.01?fmtU(cU):'–'}</td>
-    <td class="num"></td><td class="num"></td>
     <td class="num ${Math.abs(oP)>0.5?'warn':''}">${Math.abs(oP)>0.5?fmtP(oP):'–'}</td>
-    <td class="num"></td><td class="num"></td>
+    <td class="num ${Math.abs(cU)>0.01?'warn':''}">${Math.abs(cU)>0.01?fmtU(cU):'–'}</td>
     <td class="num ${Math.abs(oU)>0.01?'warn':''}">${Math.abs(oU)>0.01?fmtU(oU):'–'}</td>
-    <td class="num ${nP>=0?'pos':'neg'}" colspan="2"><strong>${fmtP(nP)}</strong></td>
-    <td class="num ${nU>=0?'pos':'neg'}"><strong>${fmtU(nU)}</strong></td>
   </tr>`;
 }
 
@@ -602,7 +586,7 @@ function renderAbiertosBody(){
     html+=blockHeader('⚠️ Ya salidos – cierre pendiente (ordenados por fecha de salida)', VENCIDOS_OPEN, '#991b1b');
     VENCIDOS_OPEN.forEach(r=>html+=fileRow(r));
     html+=subtotalRow('Subtotal ya salidos', VENCIDOS_OPEN);
-    html+=`<tr><td colspan="20" style="height:10px;background:var(--bg)"></td></tr>`;
+    html+=`<tr><td colspan="8" style="height:10px;background:var(--bg)"></td></tr>`;
   }
 
   // ── BLOQUES POR MES: Salidas futuras, un bloque por mes ──
@@ -620,7 +604,7 @@ function renderAbiertosBody(){
       html+=blockHeader(`📅 Salida: ${mes}`, recs, '#1a2744');
       recs.forEach(r=>html+=fileRow(r));
       html+=subtotalRow(`Subtotal ${mes}`, recs);
-      if(i<meses.length-1) html+=`<tr><td colspan="20" style="height:6px;background:var(--bg)"></td></tr>`;
+      if(i<meses.length-1) html+=`<tr><td colspan="8" style="height:6px;background:var(--bg)"></td></tr>`;
     });
   }
 
@@ -631,13 +615,11 @@ function renderAbiertosBody(){
   const oP=all.reduce((a,r)=>a+r.saldo_op,0),oU=all.reduce((a,r)=>a+r.saldo_op_usd,0);
   const tP=cP-oP,tU=cU-oU;
   $('t-open-foot').innerHTML=`<tr style="background:#1a2744;color:#fff;font-weight:700">
-    <td colspan="7" style="padding:8px 13px">TOTAL GENERAL · ${all.length} files</td>
-    <td class="num" style="color:#fbbf24">${fmtP(cP)}</td><td colspan="2"></td>
-    <td class="num" style="color:#fbbf24">${fmtU(cU)}</td><td colspan="2"></td>
-    <td class="num" style="color:#fca5a5">${fmtP(oP)}</td><td colspan="2"></td>
+    <td colspan="4" style="padding:8px 13px">TOTAL GENERAL · ${all.length} files</td>
+    <td class="num" style="color:#fbbf24">${fmtP(cP)}</td>
+    <td class="num" style="color:#fca5a5">${fmtP(oP)}</td>
+    <td class="num" style="color:#fbbf24">${fmtU(cU)}</td>
     <td class="num" style="color:#fca5a5">${fmtU(oU)}</td>
-    <td class="num" style="color:${tP>=0?'#86efac':'#fca5a5'}" colspan="2"><strong>${fmtP(tP)}</strong></td>
-    <td class="num" style="color:${tU>=0?'#86efac':'#fca5a5'}"><strong>${fmtU(tU)}</strong></td>
   </tr>`;
 }
 
