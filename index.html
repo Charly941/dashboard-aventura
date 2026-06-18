@@ -607,9 +607,13 @@ function renderAbiertosBody(){
 
   // ── BLOQUES POR MES: Salidas futuras, un bloque por mes ──
   if(FUTUROS_OPEN.length){
-    // Group by mes_salida
+    // Group by mes_salida (from FEC_SAL, not FEC_APE)
     const byMes={};
-    FUTUROS_OPEN.forEach(r=>{if(!byMes[r.mes_salida])byMes[r.mes_salida]=[];byMes[r.mes_salida].push(r);});
+    FUTUROS_OPEN.forEach(r=>{
+      const mes=r.FEC_SAL?r.FEC_SAL.slice(0,7):r.mes_salida;
+      if(!byMes[mes])byMes[mes]=[];
+      byMes[mes].push(r);
+    });
     const meses=Object.keys(byMes).sort();
     meses.forEach((mes,i)=>{
       const recs=byMes[mes];
@@ -704,7 +708,7 @@ function processRows(rows){
     const cie_cob=String(r['CIE_COBRO']??r['cie_cobro']??'').trim()==='C';
     const cie_op=String(r['CIE_OPERADOR']??r['cie_operador']??'').trim()==='P';
     return{ID_RES:r['ID_RES']||'',NOM_CLI:r['NOM_CLI']||'',DETALLE_VIAJE:r['DETALLE_VIAJE']||'',
-      FEC_APE:fec_ape,FEC_SAL:fec_sal,mes_salida:mes,mes_sal_real:mes_sal,mes_apertura:mes,
+      FEC_APE:fec_ape,FEC_SAL:fec_sal,mes_salida:mes_sal,mes_sal_real:mes_sal,mes_apertura:mes,
       VENTA,COBROS,COSTO,PAGOS,VENTA_USD:VU,COBROS_USD:COU,COSTO_USD:CSU,PAGOS_USD:PU,
       GANANCIA_USD:+(VU-CSU).toFixed(2),saldo_cli:+(VENTA-COBROS).toFixed(2),saldo_op:+(COSTO-PAGOS).toFixed(2),
       saldo_cli_usd:+(VU-COU).toFixed(2),saldo_op_usd:+(CSU-PU).toFixed(2),
@@ -750,11 +754,29 @@ function loadExcel(input){
   reader.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{raw:true,defval:null});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sheet,{raw:true,defval:null});
       if(!rows.length){hideModal();alert('Archivo vacío o sin datos.');return;}
+      // Debug: show what first row looks like
+      const r0=rows[0];
+      const dbg='Cols: '+Object.keys(r0).slice(0,6).join(',')+
+        '\nFEC_APE: '+typeof r0.FEC_APE+' = '+r0.FEC_APE+
+        '\nFEC_SAL: '+typeof r0.FEC_SAL+' = '+r0.FEC_SAL+
+        '\nVENTA: '+typeof r0.VENTA+' = '+r0.VENTA+
+        '\nCIE_COBRO: '+typeof r0.CIE_COBRO+' = '+r0.CIE_COBRO;
+      console.log('Row0 debug:',dbg);
       showModal(`${rows.length} filas. Calculando...`);
-      setTimeout(()=>{const detail=processRows(rows);console.log('processRows result:',detail.length,'rows',detail[0]);if(!detail.length){hideModal();alert('No se pudieron procesar filas. Verificá los nombres de columnas.');return;}console.log('Calling reloadDashboard with',detail.length,'rows');reloadDashboard(detail,file.name);input.value='';},80);
-    }catch(err){hideModal();alert('Error: '+err.message);}
+      setTimeout(()=>{
+        const detail=processRows(rows);
+        if(!detail.length){
+          hideModal();
+          alert('Error procesando filas.\n\nDatos fila 1:\n'+dbg);
+          return;
+        }
+        reloadDashboard(detail,file.name);
+        input.value='';
+      },80);
+    }catch(err){hideModal();alert('Error: '+err.message+' | '+err.stack);}
   };
   reader.readAsArrayBuffer(file);
 }
