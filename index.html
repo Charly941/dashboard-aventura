@@ -216,10 +216,10 @@ tr:hover td{background:#f8fafc}
     <div class="sx"><table>
       <thead><tr>
         <th>ID</th><th>Cliente</th><th>Viaje</th><th>Salida</th>
-        <th class="num">Saldo Cli $</th>
-        <th class="num">Saldo Op $</th>
         <th class="num">Saldo Cli USD</th>
         <th class="num">Saldo Op USD</th>
+        <th class="num">Saldo Cli $</th>
+        <th class="num">Saldo Op $</th>
       </tr></thead>
       <tbody id="t-open-detail"></tbody>
       <tfoot id="t-open-foot"></tfoot>
@@ -541,10 +541,10 @@ function fileRow(r){
     <td><strong>${(r.NOM_CLI||'–').split(' ')[0]}</strong></td>
     <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${r.DETALLE_VIAJE||'–'}</td>
     <td>${r.FEC_SAL}</td>
-    <td class="num ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
-    <td class="num ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
     <td class="num ${Math.abs(scU)>0.01?'warn':''}">${Math.abs(scU)>0.01?fmtU(scU):'–'}</td>
     <td class="num ${Math.abs(soU)>0.01?'warn':''}">${Math.abs(soU)>0.01?fmtU(soU):'–'}</td>
+    <td class="num ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
+    <td class="num ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
   </tr>`;
 }
 
@@ -556,10 +556,10 @@ function subtotalRow(label, records){
   const oU=records.reduce((a,r)=>a+r.saldo_op_usd,0);
   return `<tr style="background:#eef4ff;font-size:11px;font-weight:600">
     <td colspan="4" style="color:var(--acc);padding:5px 13px">${label} · ${records.length} files</td>
-    <td class="num ${Math.abs(cP)>0.5?'warn':''}">${Math.abs(cP)>0.5?fmtP(cP):'–'}</td>
-    <td class="num ${Math.abs(oP)>0.5?'warn':''}">${Math.abs(oP)>0.5?fmtP(oP):'–'}</td>
     <td class="num ${Math.abs(cU)>0.01?'warn':''}">${Math.abs(cU)>0.01?fmtU(cU):'–'}</td>
     <td class="num ${Math.abs(oU)>0.01?'warn':''}">${Math.abs(oU)>0.01?fmtU(oU):'–'}</td>
+    <td class="num ${Math.abs(cP)>0.5?'warn':''}">${Math.abs(cP)>0.5?fmtP(cP):'–'}</td>
+    <td class="num ${Math.abs(oP)>0.5?'warn':''}">${Math.abs(oP)>0.5?fmtP(oP):'–'}</td>
   </tr>`;
 }
 
@@ -616,10 +616,10 @@ function renderAbiertosBody(){
   const tP=cP-oP,tU=cU-oU;
   $('t-open-foot').innerHTML=`<tr style="background:#1a2744;color:#fff;font-weight:700">
     <td colspan="4" style="padding:8px 13px">TOTAL GENERAL · ${all.length} files</td>
-    <td class="num" style="color:#fbbf24">${fmtP(cP)}</td>
-    <td class="num" style="color:#fca5a5">${fmtP(oP)}</td>
     <td class="num" style="color:#fbbf24">${fmtU(cU)}</td>
     <td class="num" style="color:#fca5a5">${fmtU(oU)}</td>
+    <td class="num" style="color:#fbbf24">${fmtP(cP)}</td>
+    <td class="num" style="color:#fca5a5">${fmtP(oP)}</td>
   </tr>`;
 }
 
