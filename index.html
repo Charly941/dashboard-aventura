@@ -724,18 +724,21 @@ function showModal(msg){$('modal-msg').textContent=msg;$('modal-loading').classL
 function hideModal(){$('modal-loading').classList.remove('show');}
 function excelDateToYMD(v){
   if(v===null||v===undefined||v==='') return null;
-  if(v instanceof Date) return isNaN(v.getTime())?null:v.toISOString().slice(0,10);
+  if(v instanceof Date){
+    if(isNaN(v.getTime())) return null;
+    // Use local date to avoid timezone shift
+    const y=v.getFullYear();
+    const m=String(v.getMonth()+1).padStart(2,'0');
+    const d=String(v.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+d;
+  }
   if(typeof v==='number'&&v>0){
-    // Excel serial date
     const d=new Date(Date.UTC(1899,11,30)+v*86400000);
     return isNaN(d.getTime())?null:d.toISOString().slice(0,10);
   }
   if(typeof v==='string'&&v.trim()){
-    // yyyy-mm-dd or yyyy-mm-dd hh:mm:ss
     const m1=v.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m1) return m1[0];
-    // dd/mm/yyyy
     const m2=v.match(/^(\d{2})\/(\d{2})\/(\d{4})/); if(m2) return m2[3]+'-'+m2[2]+'-'+m2[1];
-    // m/d/yyyy
     const m3=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(m3) return m3[3]+'-'+m3[1].padStart(2,'0')+'-'+m3[2].padStart(2,'0');
   }
   return null;
@@ -821,7 +824,8 @@ function loadExcel(input){
         const detail=processRows(rows);
         if(!detail.length){
           hideModal();
-          alert('Error procesando filas.\n\nDatos fila 1:\n'+dbg);
+          const nullRows=rows.filter(r=>{const fa=excelDateToYMD(r['FEC_APE']??r['fec_ape']),fs=excelDateToYMD(r['FEC_SAL']??r['fec_sal']);return !fa||!fs;}).length;
+          alert('Error: '+nullRows+' filas sin fecha válida de '+rows.length+' totales.\n\nDatos fila 1:\n'+dbg);
           return;
         }
         reloadDashboard(detail,file.name);
