@@ -220,15 +220,19 @@ tr:hover td{background:#f8fafc}
   </div>
 </div>
     <div class="sx"><table>
-      <thead><tr>
-        <th>ID</th><th>Cliente</th><th>Viaje</th><th>Salida</th>
-        <th class="num">Saldo Cli USD</th>
-        <th class="num">Saldo Op USD</th>
-        <th class="num">Saldo Cli $</th>
-        <th class="num">Saldo Op $</th>
-        <th>Cobrar/Pagar</th>
-        <th>Operador</th>
-        <th>Observaciones</th>
+      <thead><tr style="position:sticky;top:0;z-index:10;background:#1a2744">
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">ID</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">Cliente</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">Viaje</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">Salida</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px;text-align:right">Saldo Cli USD</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px;text-align:right">Saldo Op USD</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px;text-align:right">Saldo Cli $</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px;text-align:right">Saldo Op $</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">Cobrar/Pagar</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">Observaciones</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px">Operador</th>
+        <th style="color:#fff;font-size:13px;font-weight:700;padding:10px 8px;text-align:center">✓</th>
       </tr></thead>
       <tbody id="t-open-detail"></tbody>
       <tfoot id="t-open-foot"></tfoot>
@@ -595,10 +599,11 @@ function initAbiertos(){
 function fileRow(r){
   const scP=r.saldo_cli,scU=r.saldo_cli_usd,soP=r.saldo_op,soU=r.saldo_op_usd;
   const op=getOp(r.ID_RES);
+  if(op.done) return '';
   const cobPag=(scU>0.01?'<span class="bdg br">COBRAR</span>':scU<-0.01?'<span class="bdg bgy">A FAVOR</span>':'–')+
               (soU>0.01?' <span class="bdg bo">PAGAR</span>':soU<-0.01?' <span class="bdg bgy">A FAVOR</span>':'');
   return `<tr>
-    <td>${r.ID_RES}</td>
+    <td style="font-weight:700">${r.ID_RES}</td>
     <td><strong>${(r.NOM_CLI||'–').split(' ')[0]}</strong></td>
     <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.DETALLE_VIAJE||'–'}</td>
     <td>${r.FEC_SAL}</td>
@@ -607,12 +612,15 @@ function fileRow(r){
     <td class="num ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
     <td class="num ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
     <td style="text-align:center">${cobPag}</td>
-    <td><input type="text" value="${op.operador}" placeholder="Operador"
-      style="width:100px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
+    <td><input type="text" value="${op.obs||''}" placeholder="Observaciones"
+      style="width:180px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px;font-weight:700;color:#dc2626"
+      onchange="setOp(${r.ID_RES},'obs',this.value);saveOperacional();renderAbiertosBody()"></td>
+    <td><input type="text" value="${op.operador||''}" placeholder="Operador"
+      style="width:110px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
       onchange="setOp(${r.ID_RES},'operador',this.value);saveOperacional()"></td>
-    <td><input type="text" value="${op.obs}" placeholder="Observaciones"
-      style="width:160px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
-      onchange="setOp(${r.ID_RES},'obs',this.value);saveOperacional()"></td>
+    <td style="text-align:center"><input type="checkbox" ${op.done?'checked':''}
+      title="Tildar para ocultar este file"
+      onchange="setOp(${r.ID_RES},'done',this.checked);saveOperacional();renderAbiertosBody()"></td>
   </tr>`;
 }
 
