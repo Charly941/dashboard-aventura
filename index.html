@@ -813,19 +813,23 @@ function loadExcel(input){
       if(!rows.length){hideModal();alert('Archivo vacío o sin datos.');return;}
       // Debug: show what first row looks like
       const r0=rows[0];
+      const fape=excelDateToYMD(r0.FEC_APE);
+      const fsal=excelDateToYMD(r0.FEC_SAL);
       const dbg='Cols: '+Object.keys(r0).slice(0,6).join(',')+
-        '\nFEC_APE: '+typeof r0.FEC_APE+' = '+r0.FEC_APE+
-        '\nFEC_SAL: '+typeof r0.FEC_SAL+' = '+r0.FEC_SAL+
+        '\nFEC_APE: '+typeof r0.FEC_APE+' = '+r0.FEC_APE+' → '+fape+
+        '\nFEC_SAL: '+typeof r0.FEC_SAL+' = '+r0.FEC_SAL+' → '+fsal+
         '\nVENTA: '+typeof r0.VENTA+' = '+r0.VENTA+
-        '\nCIE_COBRO: '+typeof r0.CIE_COBRO+' = '+r0.CIE_COBRO;
+        '\nVENTAUS: '+typeof r0.VENTAUS+' = '+r0.VENTAUS+
+        '\nCIE_COBRO: '+typeof r0.CIE_COBRO+' = '+r0.CIE_COBRO+
+        '\nfape ok: '+!!fape+' fsal ok: '+!!fsal;
       console.log('Row0 debug:',dbg);
       showModal(`${rows.length} filas. Calculando...`);
       setTimeout(()=>{
         const detail=processRows(rows);
+        const nullRows=rows.length-detail.length;
         if(!detail.length){
           hideModal();
-          const nullRows=rows.filter(r=>{const fa=excelDateToYMD(r['FEC_APE']??r['fec_ape']),fs=excelDateToYMD(r['FEC_SAL']??r['fec_sal']);return !fa||!fs;}).length;
-          alert('Error: '+nullRows+' filas sin fecha válida de '+rows.length+' totales.\n\nDatos fila 1:\n'+dbg);
+          alert('0 filas procesadas de '+rows.length+'.\n'+nullRows+' filas con error.\n\nFila 1:\n'+dbg);
           return;
         }
         reloadDashboard(detail,file.name);
