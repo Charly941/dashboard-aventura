@@ -758,32 +758,45 @@ function processRows(rows){
     const fec_ape=excelDateToYMD(r['FEC_APE']??r['fec_ape']);
     const fec_sal=excelDateToYMD(r['FEC_SAL']??r['fec_sal']);
     if(!fec_ape||!fec_sal) return null;
-    const mes=fec_ape.slice(0,7),mes_sal=fec_sal.slice(0,7);
-    const VENTA=toNum(r['VENTA']),VENTAUS=toNum(r['VENTAUS']),COBROS=toNum(r['COBROS']),COBROSUS=toNum(r['COBROSUS']);
-    const COSTO=toNum(r['COSTO']),COSTOUS=toNum(r['COSTOUS']),PAGOS=toNum(r['PAGOS']),PAGOSUS=toNum(r['PAGOSUS']);
-    // Saldos directo: cada columna menos su par
-    const VU=VENTAUS,COU=COBROSUS,CSU=COSTOUS,PU=PAGOSUS;
+    const mes=fec_ape.slice(0,7), mes_sal=fec_sal.slice(0,7);
+    // Valores brutos
+    const VENTA   =toNum(r['VENTA']),   VENTAUS =toNum(r['VENTAUS']);
+    const COBROS  =toNum(r['COBROS']),  COBROSUS=toNum(r['COBROSUS']);
+    const COSTO   =toNum(r['COSTO']),   COSTOUS =toNum(r['COSTOUS']);
+    const PAGOS   =toNum(r['PAGOS']),   PAGOSUS =toNum(r['PAGOSUS']);
+    // Saldos SIEMPRE directo: columna - columna
+    const saldo_cli    = +(VENTA   - COBROS  ).toFixed(2);
+    const saldo_op     = +(COSTO   - PAGOS   ).toFixed(2);
+    const saldo_cli_usd= +(VENTAUS - COBROSUS).toFixed(2);
+    const saldo_op_usd = +(COSTOUS - PAGOSUS ).toFixed(2);
+    // Cierres
+    const cie_res=String(r['CIE_RESERVA']??'').trim()==='R';
+    const cie_cob=String(r['CIE_COBRO']  ??'').trim()==='C';
+    const cie_op =String(r['CIE_OPERADOR']??'').trim()==='P';
+    // Caso para ganancia mensual
     let caso='D';
-    if(VENTAUS>0&&VENTA===0)caso='A';else if(VENTAUS>0&&VENTA>0)caso='B';else if(VENTAUS===0&&VENTA>0)caso='C';
+    if(VENTAUS>0&&VENTA===0)caso='A';
+    else if(VENTAUS>0&&VENTA>0)caso='B';
+    else if(VENTAUS===0&&VENTA>0)caso='C';
     const tc=TC_BLUE_TABLE[mes]||1425;
-    const VENTA_USD_calc=caso==='C'?+(VENTA/tc).toFixed(2):VU;
-    const COSTO_USD_calc=caso==='C'?+(COSTO/tc).toFixed(2):CSU;
-    const cie_res=String(r['CIE_RESERVA']??r['cie_reserva']??'').trim()==='R';
-    const cie_cob=String(r['CIE_COBRO']??r['cie_cobro']??'').trim()==='C';
-    const cie_op=String(r['CIE_OPERADOR']??r['cie_operador']??'').trim()==='P';
-    return{ID_RES:r['ID_RES']||'',NOM_CLI:r['NOM_CLI']||'',DETALLE_VIAJE:r['DETALLE_VIAJE']||'',
-      FEC_APE:fec_ape,FEC_SAL:fec_sal,mes_salida:mes_sal,mes_sal_real:mes_sal,mes_apertura:mes,
-      VENTA,COBROS,COSTO,PAGOS,VENTA_USD:VU,COBROS_USD:COU,COSTO_USD:CSU,PAGOS_USD:PU,
-      GANANCIA_USD:+(VU-CSU).toFixed(2),saldo_cli:+(VENTA-COBROS).toFixed(2),saldo_op:+(COSTO-PAGOS).toFixed(2),
-      saldo_cli_usd:+(VENTAUS-COBROSUS).toFixed(2),saldo_op_usd:+(COSTOUS-PAGOSUS).toFixed(2),
-      TC_usado:caso==='C'?tc:null,case:caso,
-      cobro_cerrado:cie_cob,op_cerrado:cie_op,
-      cie_res,cie_cob,cie_op,
-      saldo_cliente_usd:+(VU-COU).toFixed(2),saldo_operador_usd:+(CSU-PU).toFixed(2),
-      saldo_cliente:+(VENTA-COBROS).toFixed(2),saldo_operador:+(COSTO-PAGOS).toFixed(2),
-      vencido:fec_sal<today};
+    const VENTA_USD_gan=caso==='C'?+(VENTA/tc).toFixed(2):VENTAUS;
+    const COSTO_USD_gan=caso==='C'?+(COSTO/tc).toFixed(2):COSTOUS;
+    return{
+      ID_RES:r['ID_RES']||'', NOM_CLI:r['NOM_CLI']||'', DETALLE_VIAJE:r['DETALLE_VIAJE']||'',
+      FEC_APE:fec_ape, FEC_SAL:fec_sal, mes_salida:mes_sal, mes_sal_real:mes_sal, mes_apertura:mes,
+      VENTA, COBROS, COSTO, PAGOS,
+      VENTA_USD:VENTAUS, COBROS_USD:COBROSUS, COSTO_USD:COSTOUS, PAGOS_USD:PAGOSUS,
+      saldo_cli, saldo_op, saldo_cli_usd, saldo_op_usd,
+      saldo_cliente:saldo_cli, saldo_operador:saldo_op,
+      saldo_cliente_usd:saldo_cli_usd, saldo_operador_usd:saldo_op_usd,
+      GANANCIA_USD:+(VENTA_USD_gan-COSTO_USD_gan).toFixed(2),
+      TC_usado:caso==='C'?tc:null, case:caso,
+      cobro_cerrado:cie_cob, op_cerrado:cie_op, cie_res, cie_cob, cie_op,
+      vencido:fec_sal<today
+    };
   }).filter(Boolean);
 }
+
 function buildMonthly(detail){
   const map={};
   detail.forEach(r=>{const k=r.mes_apertura;if(!map[k])map[k]={mes_salida:k,ventas_usd:0,cobros_usd:0,costo_usd:0,pagos_usd:0,ganancia_usd:0,num_reservas:0,tc_usado:r.TC_usado};map[k].ventas_usd+=r.VENTA_USD;map[k].cobros_usd+=r.COBROS_USD;map[k].costo_usd+=r.COSTO_USD;map[k].pagos_usd+=r.PAGOS_USD;map[k].ganancia_usd+=r.GANANCIA_USD;map[k].num_reservas++;});
