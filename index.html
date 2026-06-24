@@ -510,7 +510,7 @@ function initSaldosKPI(){
     <div class="kpi"><div class="kl">Cobros abiertos</div><div class="kv">${COBROS.length}</div><div class="ks">registros</div></div>
     <div class="kpi"><div class="kl">Pagos abiertos</div><div class="kv">${OPS.length}</div><div class="ks">registros</div></div>`;
 }
-function fCob(){let d=[...COBROS];const m=$('fc-mes').value,e=$('fc-est').value,s=$('fc-sal').value,q=$('sc-cob').value.toLowerCase();if(m)d=d.filter(r=>r.mes_salida===m);if(e==='v')d=d.filter(r=>r.vencido);if(e==='n')d=d.filter(r=>!r.vencido);if(s==='s')d=d.filter(r=>r.saldo_cliente_usd>0.01);if(q)d=d.filter(r=>(r.NOM_CLI||'').toLowerCase().includes(q)||(r.DETALLE_VIAJE||'').toLowerCase().includes(q));return d;}
+function fCob(){let d=[...COBROS];const m=$('fc-mes').value,e=$('fc-est').value,s=$('fc-sal').value,q=$('sc-cob').value.toLowerCase();if(m)d=d.filter(r=>r.mes_salida===m);if(e==='v')d=d.filter(r=>r.vencido);if(e==='n')d=d.filter(r=>!r.vencido);if(s==='s')d=d.filter(r=>r.saldo_cliente_usd>0.01);if(q)d=d.filter(r=>(r.NOM_CLI||'').toLowerCase().includes(q)||(r.DETALLE_VIAJE||'').toLowerCase().includes(q));d.sort((a,b)=>a.ID_RES-b.ID_RES);return d;}
 function renderCobros(){pC=0;renderCobrosP();}
 function renderCobrosP(){
   const d=fCob(),tb=$('t-cobros');tb.innerHTML='';
@@ -520,7 +520,7 @@ function renderCobrosP(){
   });
   renderPag('p-cobros',d.length,pC,p=>{pC=p;renderCobrosP();});
 }
-function fOp(){let d=[...OPS];const m=$('fo-mes').value,e=$('fo-est').value,s=$('fo-sal').value,q=$('sc-op').value.toLowerCase();if(m)d=d.filter(r=>r.mes_salida===m);if(e==='v')d=d.filter(r=>r.vencido);if(e==='n')d=d.filter(r=>!r.vencido);if(s==='s')d=d.filter(r=>r.saldo_operador_usd>0.01);if(q)d=d.filter(r=>(r.NOM_CLI||'').toLowerCase().includes(q)||(r.DETALLE_VIAJE||'').toLowerCase().includes(q));return d;}
+function fOp(){let d=[...OPS];const m=$('fo-mes').value,e=$('fo-est').value,s=$('fo-sal').value,q=$('sc-op').value.toLowerCase();if(m)d=d.filter(r=>r.mes_salida===m);if(e==='v')d=d.filter(r=>r.vencido);if(e==='n')d=d.filter(r=>!r.vencido);if(s==='s')d=d.filter(r=>r.saldo_operador_usd>0.01);if(q)d=d.filter(r=>(r.NOM_CLI||'').toLowerCase().includes(q)||(r.DETALLE_VIAJE||'').toLowerCase().includes(q));d.sort((a,b)=>a.ID_RES-b.ID_RES);return d;}
 function renderOps(){pO=0;renderOpsP();}
 function renderOpsP(){
   const d=fOp(),tb=$('t-ops');tb.innerHTML='';
