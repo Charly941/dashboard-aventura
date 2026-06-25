@@ -553,9 +553,19 @@ function renderCuadroResumen(groups){
   if(hasGastos){
     tbl+=row('Gastos en pesos', gastosPeriodARS, prevGastosPeriodARS, fmtP, false, '#dc2626');
     tbl+=row('Gastos en USD', gastosPeriodUSD, prevGastosPeriodUSD, fmtU, false, '#dc2626');
-    // Ganancia neta
-    const netaUSD=+(cur.ganancia-gastosPeriodUSD).toFixed(2);
-    const prevNetaUSD=prev?+(prev.ganancia-prevGastosPeriodUSD).toFixed(2):0;
+    // Ganancia neta: descuenta gastos ARS convertidos a USD + gastos USD directos
+    const gastosTotalUSD=+(gastosPeriodUSD + gastosMonths.reduce((a,m)=>{
+      const g=getGastosMes(m);
+      const tc=TC[m]||TC_BASE[m]||1425;
+      return a+(g.total||0)/tc;
+    },0)).toFixed(2);
+    const prevGastosTotalUSD=prev?+(prevGastosPeriodUSD + groups[1].months.reduce((a,m)=>{
+      const g=getGastosMes(m);
+      const tc=TC[m]||TC_BASE[m]||1425;
+      return a+(g.total||0)/tc;
+    },0)).toFixed(2):0;
+    const netaUSD=+(cur.ganancia-gastosTotalUSD).toFixed(2);
+    const prevNetaUSD=prev?+(prev.ganancia-prevGastosTotalUSD).toFixed(2):0;
     tbl+=`<tr style="background:#1a2744"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#fff;font-size:13px">GANANCIA NETA</td></tr>`;
     tbl+=row('Ganancia neta USD', netaUSD, prev?prevNetaUSD:null, fmtU, true, netaUSD>=0?'#16a34a':'#dc2626');
   }
