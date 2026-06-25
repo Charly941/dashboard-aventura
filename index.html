@@ -510,6 +510,10 @@ function renderCuadroResumen(groups){
   tbl+=`<tr style="background:#1a2744"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#fff;font-size:13px">TOTAL GANANCIA</td></tr>`;
   tbl+=row('Total pesos + USD convertido', cur.ganancia, prev?.ganancia, fmtU, true, cur.ganancia>=0?'#16a34a':'#dc2626');
 
+  // RESERVAS
+  tbl+=`<tr style="background:#f8fafc"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:var(--mut);font-size:13px">RESERVAS</td></tr>`;
+  tbl+=row('Total reservas del período', cur.reservas, prev?.reservas, v=>v||0, true);
+
   tbl+=`</tbody></table>`;
   $('cuadro-resumen').innerHTML=tbl;
 }
