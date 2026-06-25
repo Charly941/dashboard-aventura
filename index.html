@@ -401,20 +401,29 @@ function resolveGroups(){
 }
 function aggMonths(months){
   const rows=months.map(m=>MONTHLY.find(r=>r.mes_salida===m)).filter(Boolean);
-  const tv=rows.reduce((a,r)=>a+(r.ventas_usd_total||r.ventas_usd||0),0);
-  const tg=rows.reduce((a,r)=>a+(r.ganancia_usd_total||r.ganancia_usd||0),0);
+  // Pesos directo
+  const ventas_ars=rows.reduce((a,r)=>a+(r.ventas_ars||0),0);
+  const costo_ars=rows.reduce((a,r)=>a+(r.costo_ars||0),0);
+  const ganancia_ars=rows.reduce((a,r)=>a+(r.ganancia_ars||0),0);
+  // USD directo
+  const ventas_usd_puro=rows.reduce((a,r)=>a+(r.ventas_usd||0),0);
+  const costo_usd_puro=rows.reduce((a,r)=>a+(r.costo_usd||0),0);
+  const ganancia_usd_puro=rows.reduce((a,r)=>a+(r.ganancia_usd||0),0);
+  // Total: convertir pesos a USD usando TC editable por mes
+  let ventas_total=ventas_usd_puro, costo_total=costo_usd_puro;
+  rows.forEach(r=>{
+    const tc=TC[r.mes_salida]||TC_BASE[r.mes_salida]||1425;
+    ventas_total+=+(( r.ventas_ars||0)/tc).toFixed(2);
+    costo_total +=(+(( r.costo_ars||0)/tc).toFixed(2));
+  });
+  const ganancia_total=+(ventas_total-costo_total).toFixed(2);
+  const tv=+ventas_total.toFixed(2);
   return{
-    ventas:tv,
-    costo:rows.reduce((a,r)=>a+(r.costo_usd_total||r.costo_usd||0),0),
-    ganancia:tg,
+    ventas:tv, costo:+costo_total.toFixed(2), ganancia:ganancia_total,
     reservas:rows.reduce((a,r)=>a+r.num_reservas,0),
-    margen:tv?tg/tv*100:0,
-    ventas_ars:rows.reduce((a,r)=>a+(r.ventas_ars||0),0),
-    costo_ars:rows.reduce((a,r)=>a+(r.costo_ars||0),0),
-    ganancia_ars:rows.reduce((a,r)=>a+(r.ganancia_ars||0),0),
-    ventas_usd_puro:rows.reduce((a,r)=>a+(r.ventas_usd||0),0),
-    costo_usd_puro:rows.reduce((a,r)=>a+(r.costo_usd||0),0),
-    ganancia_usd_puro:rows.reduce((a,r)=>a+(r.ganancia_usd||0),0),
+    margen:tv?ganancia_total/tv*100:0,
+    ventas_ars, costo_ars, ganancia_ars,
+    ventas_usd_puro, costo_usd_puro, ganancia_usd_puro,
     months:rows
   };
 }
