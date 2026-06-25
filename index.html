@@ -971,9 +971,19 @@ function recalcTC(){
     MONTHLY.push(m);
   });
 
-  // 3. Refrescar pestaña TC y Ventas
+  // 3. Recalcular gastos USD con nuevos TC
+  Object.keys(GASTOS_DATA).forEach(mes=>{
+    const tc=TC[mes]||TC_BASE[mes]||1425;
+    const items=GASTOS_DATA[mes].items.map(r=>({...r,importeUSD:+(r.importe/tc).toFixed(2)}));
+    const totalUSD=+items.reduce((a,r)=>a+r.importeUSD,0).toFixed(2);
+    GASTOS_DATA[mes]={...GASTOS_DATA[mes],items,totalUSD};
+  });
+  saveGastosData();
+
+  // 4. Refrescar pestañas
   initTC();
   if($('page-ventas').classList.contains('active')) renderVentas();
+  if($('page-gastos').classList.contains('active')) initGastos();
   alert('✅ Tipos de cambio actualizados y guardados.');
 }
 
