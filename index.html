@@ -122,6 +122,7 @@ tr:hover td{background:#f8fafc}
   <button class="tab" onclick="showPage('proyeccion',this)">Proyección</button>
   <button class="tab" onclick="showPage('detalle',this)">Detalle</button>
   <button class="tab" onclick="showPage('abiertos',this)">Files Abiertos</button>
+  <button class="tab" onclick="showPage('gastos',this)">Gastos</button>
   <button class="tab" onclick="showPage('tc',this)">TC</button>
 </div>
 
@@ -242,6 +243,35 @@ tr:hover td{background:#f8fafc}
   </div>
 </div>
 
+<div id="page-gastos" class="page">
+  <div style="background:var(--card);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h3 style="font-size:15px;font-weight:700">Gastos de Oficina por Mes</h3>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="gastos-mes-sel" style="padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:13px">
+          <option value="">-- Seleccioná mes --</option>
+        </select>
+        <label class="upload-btn" style="padding:6px 12px;border-radius:6px;border:1px solid var(--brd);background:var(--acc);color:#fff;font-size:12px;font-weight:600;cursor:pointer">
+          📂 Cargar Excel gastos
+          <input type="file" id="gastos-input" accept=".xlsx,.xls" style="display:none" onchange="loadGastos(this)">
+        </label>
+        <button onclick="deleteGastosMes()" style="padding:6px 12px;border-radius:6px;border:1px solid var(--red);color:var(--red);background:#fff;font-size:12px;cursor:pointer">🗑 Borrar mes</button>
+      </div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="kpi-gastos"></div>
+  <div class="tbox">
+    <div class="thead-row"><h3 id="gastos-title">Seleccioná un mes para ver el detalle</h3></div>
+    <div class="sx"><table><thead><tr>
+      <th>Concepto</th>
+      <th class="num">Importe $</th>
+      <th class="num">Importe USD</th>
+    </tr></thead><tbody id="t-gastos"></tbody>
+    <tfoot id="t-gastos-foot"></tfoot>
+    </table></div>
+  </div>
+</div>
+
 <div id="page-tc" class="page">
   <div class="proj-note">💡 TC blue venta, último día hábil de cada mes. Podés editar y recalcular.</div>
   <div class="cmp-table-wrap">
@@ -339,6 +369,7 @@ function showPage(name,btn){
   if(name==='detalle') renderDetalle();
   if(name==='abiertos') initAbiertos();
   if(name==='tc') initTC();
+  if(name==='gastos') initGastos();
 }
 
 // ── SELECTS & MODE ───────────────────────────────────────
@@ -506,9 +537,28 @@ function renderCuadroResumen(groups){
   tbl+=row('Costo USD', cur.costo_usd_puro, prev?.costo_usd_puro, fmtU);
   tbl+=row('Ganancia USD', cur.ganancia_usd_puro, prev?.ganancia_usd_puro, fmtU, true, cur.ganancia_usd_puro>=0?'#16a34a':'#dc2626');
 
-  // TOTAL
+  // TOTAL GANANCIA
   tbl+=`<tr style="background:#1a2744"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#fff;font-size:13px">TOTAL GANANCIA</td></tr>`;
   tbl+=row('Total pesos + USD convertido', cur.ganancia, prev?.ganancia, fmtU, true, cur.ganancia>=0?'#16a34a':'#dc2626');
+
+  // GASTOS OFICINA
+  const gastosMonths=groups[0].months;
+  const gastosPeriodARS=gastosMonths.reduce((a,m)=>{const g=getGastosMes(m);return a+g.total;},0);
+  const gastosPeriodUSD=gastosMonths.reduce((a,m)=>{const g=getGastosMes(m);return a+g.totalUSD;},0);
+  const prevGastosPeriodARS=prev?groups[1].months.reduce((a,m)=>{const g=getGastosMes(m);return a+g.total;},0):0;
+  const prevGastosPeriodUSD=prev?groups[1].months.reduce((a,m)=>{const g=getGastosMes(m);return a+g.totalUSD;},0):0;
+  const hasGastos=gastosPeriodARS>0||gastosPeriodUSD>0;
+
+  tbl+=`<tr style="background:#fee2e2"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#dc2626;font-size:13px">GASTOS OFICINA${hasGastos?'':' (sin datos cargados)'}</td></tr>`;
+  if(hasGastos){
+    tbl+=row('Gastos en pesos', gastosPeriodARS, prevGastosPeriodARS, fmtP, false, '#dc2626');
+    tbl+=row('Gastos en USD', gastosPeriodUSD, prevGastosPeriodUSD, fmtU, false, '#dc2626');
+    // Ganancia neta
+    const netaUSD=+(cur.ganancia-gastosPeriodUSD).toFixed(2);
+    const prevNetaUSD=prev?+(prev.ganancia-prevGastosPeriodUSD).toFixed(2):0;
+    tbl+=`<tr style="background:#1a2744"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#fff;font-size:13px">GANANCIA NETA</td></tr>`;
+    tbl+=row('Ganancia neta USD', netaUSD, prev?prevNetaUSD:null, fmtU, true, netaUSD>=0?'#16a34a':'#dc2626');
+  }
 
   // RESERVAS
   tbl+=`<tr style="background:#f8fafc"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:var(--mut);font-size:13px">RESERVAS</td></tr>`;
@@ -776,6 +826,117 @@ function renderAbiertosBody(){
   </tr>`;
 }
 
+// ── GASTOS OFICINA ───────────────────────────────────────
+const GASTOS_KEY='aventura_gastos'; // {mes: {items:[{nombre,importe}], total}}
+let GASTOS_DATA={};
+
+function loadGastosData(){
+  try{const s=localStorage.getItem(GASTOS_KEY);if(s)GASTOS_DATA=JSON.parse(s);}
+  catch(e){}
+}
+
+function saveGastosData(){
+  localStorage.setItem(GASTOS_KEY,JSON.stringify(GASTOS_DATA));
+}
+
+function initGastos(){
+  loadGastosData();
+  // Populate month selector with all months that have data + current months
+  const meses=new Set([...Object.keys(GASTOS_DATA),...allMeses]);
+  const sel=$('gastos-mes-sel');
+  const curVal=sel.value;
+  sel.innerHTML='<option value="">-- Seleccioná mes --</option>';
+  [...meses].sort().reverse().forEach(m=>{
+    const hasData=GASTOS_DATA[m]?'✓ ':'';
+    sel.innerHTML+=`<option value="${m}">${hasData}${m}</option>`;
+  });
+  if(curVal) sel.value=curVal;
+  renderGastosMes();
+  renderGastosKPI();
+}
+
+function renderGastosKPI(){
+  const meses=Object.keys(GASTOS_DATA);
+  if(!meses.length){$('kpi-gastos').innerHTML='';return;}
+  const totalARS=meses.reduce((a,m)=>a+(GASTOS_DATA[m].total||0),0);
+  const totalUSD=meses.reduce((a,m)=>a+(GASTOS_DATA[m].totalUSD||0),0);
+  $('kpi-gastos').innerHTML=`
+    <div class="kpi r"><div class="kl">Total gastos ARS (acum.)</div><div class="kv">${fmtP(totalARS)}</div><div class="ks">${meses.length} meses cargados</div></div>
+    <div class="kpi r"><div class="kl">Total gastos USD (acum.)</div><div class="kv">${fmtU(totalUSD)}</div><div class="ks">&nbsp;</div></div>
+  `;
+}
+
+function renderGastosMes(){
+  const mes=$('gastos-mes-sel').value;
+  const tb=$('t-gastos'),tf=$('t-gastos-foot');
+  tb.innerHTML='';tf.innerHTML='';
+  if(!mes||!GASTOS_DATA[mes]){
+    $('gastos-title').textContent=mes?`Sin datos para ${mes}`:'Seleccioná un mes para ver el detalle';
+    return;
+  }
+  const d=GASTOS_DATA[mes];
+  $('gastos-title').textContent=`Detalle de gastos — ${mes}`;
+  d.items.forEach(r=>{
+    tb.innerHTML+=`<tr>
+      <td><strong>${r.nombre}</strong></td>
+      <td class="num">${fmtP(r.importe)}</td>
+      <td class="num">${fmtU(r.importeUSD)}</td>
+    </tr>`;
+  });
+  tf.innerHTML=`<tr style="background:#fee2e2;font-weight:700">
+    <td style="padding:8px 13px">TOTAL ${mes}</td>
+    <td class="num">${fmtP(d.total)}</td>
+    <td class="num">${fmtU(d.totalUSD)}</td>
+  </tr>`;
+}
+
+function deleteGastosMes(){
+  const mes=$('gastos-mes-sel').value;
+  if(!mes){alert('Seleccioná un mes primero');return;}
+  if(!confirm(`¿Borrar los gastos de ${mes}?`))return;
+  delete GASTOS_DATA[mes];
+  saveGastosData();
+  initGastos();
+}
+
+function loadGastos(input){
+  const file=input.files[0];if(!file)return;
+  const mes=$('gastos-mes-sel').value;
+  if(!mes){alert('Seleccioná el mes al que corresponde este archivo antes de cargarlo.');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:0});
+      // Skip header row, get items with SALDO>0 and RUBRO==0
+      const items=[];
+      rows.slice(1).forEach(r=>{
+        const nombre=r[0],saldo=parseFloat(r[5])||0,rubro=parseFloat(r[6])||0;
+        if(saldo>0&&rubro===0&&nombre){
+          const tc=TC[mes]||TC_BASE[mes]||1425;
+          items.push({nombre:String(nombre).trim(),importe:saldo,importeUSD:+(saldo/tc).toFixed(2)});
+        }
+      });
+      if(!items.length){alert('No se encontraron gastos en el archivo.');input.value='';return;}
+      const total=items.reduce((a,r)=>a+r.importe,0);
+      const totalUSD=items.reduce((a,r)=>a+r.importeUSD,0);
+      GASTOS_DATA[mes]={items,total:+total.toFixed(2),totalUSD:+totalUSD.toFixed(2)};
+      saveGastosData();
+      initGastos();
+      $('gastos-mes-sel').value=mes;
+      renderGastosMes();
+      alert(`✅ Gastos de ${mes} cargados: ${items.length} ítems · Total: ${fmtP(total)}`);
+    }catch(err){alert('Error leyendo el archivo: '+err.message);}
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function getGastosMes(mes){
+  if(!GASTOS_DATA[mes])return{total:0,totalUSD:0};
+  return GASTOS_DATA[mes];
+}
+
 // ── TC ───────────────────────────────────────────────────
 function initTC(){
   const tb=$('t-tc');tb.innerHTML='';
@@ -1027,6 +1188,7 @@ function renderPag(id,total,cur,cb){
 // Cargar TC guardados
 const tcSaved=localStorage.getItem('aventura_tc');
 if(tcSaved){try{const t=JSON.parse(tcSaved);Object.assign(TC,t);}catch(e){}}
+loadGastosData();
 initSelects();
 renderVentas();
 loadOperacional();
