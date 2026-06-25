@@ -782,24 +782,36 @@ function initTC(){
   });
 }
 function recalcTC(){
-  Object.keys(TC).forEach(m=>{const inp=document.getElementById('tc-'+m);if(inp&&inp.value)TC[m]=parseFloat(inp.value);});
-  DETAIL.forEach(r=>{if(r.case==='C'){const tc=TC[r.mes_salida];if(tc){r.VENTA_USD=r.VENTA?+(r.VENTA/tc).toFixed(2):0;r.COBROS_USD=r.COBROS?+(r.COBROS/tc).toFixed(2):0;r.COSTO_USD=r.COSTO?+(r.COSTO/tc).toFixed(2):0;r.PAGOS_USD=r.PAGOS?+(r.PAGOS/tc).toFixed(2):0;r.GANANCIA_USD=+(r.VENTA_USD-r.COSTO_USD).toFixed(2);r.saldo_cliente_usd=+(r.VENTA_USD-r.COBROS_USD).toFixed(2);r.saldo_operador_usd=+(r.COSTO_USD-r.PAGOS_USD).toFixed(2);r.TC_usado=tc;}}});
-  const mMap={};DETAIL.forEach(r=>{const k=r.mes_apertura;if(!mMap[k])mMap[k]={ventas_usd:0,cobros_usd:0,costo_usd:0,pagos_usd:0,ganancia_usd:0,num_reservas:0};mMap[k].ventas_usd+=r.VENTA_USD||0;mMap[k].cobros_usd+=r.COBROS_USD||0;mMap[k].costo_usd+=r.COSTO_USD||0;mMap[k].pagos_usd+=r.PAGOS_USD||0;mMap[k].ganancia_usd+=r.GANANCIA_USD||0;mMap[k].num_reservas++;});
-  MONTHLY.forEach(m=>{const r=mMap[m.mes_salida];if(r){Object.assign(m,{ventas_usd:+r.ventas_usd.toFixed(2),cobros_usd:+r.cobros_usd.toFixed(2),costo_usd:+r.costo_usd.toFixed(2),pagos_usd:+r.pagos_usd.toFixed(2),ganancia_usd:+r.ganancia_usd.toFixed(2)});m.margen_pct=m.ventas_usd?+(m.ganancia_usd/m.ventas_usd*100).toFixed(1):0;}});
-  COBROS.forEach(r=>{const dr=DETAIL.find(d=>d.ID_RES===r.ID_RES);if(dr&&dr.case==='C'){r.VENTA_USD=dr.VENTA_USD;r.COBROS_USD=dr.COBROS_USD;r.saldo_cliente_usd=dr.saldo_cliente_usd;r.TC_usado=dr.TC_usado;}});
-  OPS.forEach(r=>{const dr=DETAIL.find(d=>d.ID_RES===r.ID_RES);if(dr&&dr.case==='C'){r.COSTO_USD=dr.COSTO_USD;r.PAGOS_USD=dr.PAGOS_USD;r.saldo_operador_usd=dr.saldo_operador_usd;r.TC_usado=dr.TC_usado;}});
-  initTC();alert('✅ Recalculado.');
+  // 1. Leer valores del formulario y actualizar TC
+  Object.keys(TC).forEach(m=>{
+    const inp=document.getElementById('tc-'+m);
+    if(inp&&inp.value&&!isNaN(parseFloat(inp.value)))
+      TC[m]=parseFloat(inp.value);
+  });
+  // Guardar en localStorage
+  localStorage.setItem('aventura_tc', JSON.stringify(TC));
+
+  // 2. Recalcular MONTHLY con nuevos TC
+  const mMap={};
+  DETAIL.forEach(r=>{
+    const k=r.mes_apertura;
+    if(!mMap[k]) mMap[k]={mes_salida:k,ventas_ars:0,costo_ars:0,ganancia_ars:0,ventas_usd:0,costo_usd:0,ganancia_usd:0,num_reservas:0};
+    if(r.case==='B'||r.case==='C'){mMap[k].ventas_ars+=r.VENTA||0;mMap[k].costo_ars+=r.COSTO||0;mMap[k].ganancia_ars+=(r.VENTA||0)-(r.COSTO||0);}
+    if(r.case==='A'||r.case==='B'){mMap[k].ventas_usd+=r.VENTA_USD||r.VENTAUS||0;mMap[k].costo_usd+=r.COSTO_USD||r.COSTOUS||0;mMap[k].ganancia_usd+=((r.VENTA_USD||r.VENTAUS||0)-(r.COSTO_USD||r.COSTOUS||0));}
+    mMap[k].num_reservas++;
+  });
+  MONTHLY.length=0;
+  Object.values(mMap).sort((a,b)=>a.mes_salida.localeCompare(b.mes_salida)).forEach(m=>{
+    for(const c of['ventas_ars','costo_ars','ganancia_ars','ventas_usd','costo_usd','ganancia_usd'])m[c]=+m[c].toFixed(2);
+    MONTHLY.push(m);
+  });
+
+  // 3. Refrescar pestaña TC y Ventas
+  initTC();
+  if($('page-ventas').classList.contains('active')) renderVentas();
+  alert('✅ Tipos de cambio actualizados y guardados.');
 }
 
-const TC_BLUE_TABLE={
-  '2023-02':375,'2023-03':393,'2023-04':494,'2023-05':491,'2023-06':501,'2023-07':550,'2023-08':735,'2023-09':750,'2023-10':1025,'2023-11':960,'2023-12':1025,'2024-01':1185,'2024-02':1195,'2024-03':1020,'2024-04':1065,
-  '2024-05':1270,'2024-06':1420,'2024-07':1455,'2024-08':1350,'2024-09':1200,'2024-10':1185,'2024-11':1090,'2024-12':1230,
-  '2025-01':1215,'2025-02':1265,'2025-03':1350,'2025-04':1375,'2025-05':1340,'2025-06':1340,'2025-07':1380,'2025-08':1420,
-  '2025-09':1415,'2025-10':1450,'2025-11':1490,'2025-12':1530,'2026-01':1510,'2026-02':1505,'2026-03':1495,
-  '2026-04':1460,'2026-05':1430,'2026-06':1425,'2026-07':1425,'2026-08':1425,'2026-09':1425,'2026-10':1425,'2026-11':1425,'2026-12':1425,
-};
-
-// ── EXCEL UPLOAD ─────────────────────────────────────────
 
 function showModal(msg){$('modal-msg').textContent=msg;$('modal-loading').classList.add('show');}
 function hideModal(){$('modal-loading').classList.remove('show');}
@@ -1006,6 +1018,9 @@ function renderPag(id,total,cur,cb){
 }
 
 // ── BOOT ─────────────────────────────────────────────────
+// Cargar TC guardados
+const tcSaved=localStorage.getItem('aventura_tc');
+if(tcSaved){try{const t=JSON.parse(tcSaved);Object.assign(TC,t);}catch(e){}}
 initSelects();
 renderVentas();
 loadOperacional();
