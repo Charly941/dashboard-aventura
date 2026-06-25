@@ -972,6 +972,8 @@ function recalcTC(){
   });
 
   // 3. Recalcular gastos USD con nuevos TC
+  // Recargar desde localStorage por si acaso
+  try{const s=localStorage.getItem(GASTOS_KEY);if(s)GASTOS_DATA=JSON.parse(s);}catch(e){}
   Object.keys(GASTOS_DATA).forEach(mes=>{
     const tc=TC[mes]||TC_BASE[mes]||1425;
     const items=GASTOS_DATA[mes].items.map(r=>({...r,importeUSD:+(r.importe/tc).toFixed(2)}));
@@ -979,6 +981,7 @@ function recalcTC(){
     GASTOS_DATA[mes]={...GASTOS_DATA[mes],items,totalUSD};
   });
   saveGastosData();
+  console.log('Gastos recalculados:', Object.keys(GASTOS_DATA));
 
   // 4. Refrescar pestañas
   initTC();
