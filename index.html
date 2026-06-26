@@ -123,6 +123,7 @@ tr:hover td{background:#f8fafc}
   <button class="tab" onclick="showPage('detalle',this)">Detalle</button>
   <button class="tab" onclick="showPage('abiertos',this)">Files Abiertos</button>
   <button class="tab" onclick="showPage('gastos',this)">Gastos</button>
+  <button class="tab" onclick="showPage('retiros',this)">Retiros</button>
   <button class="tab" onclick="showPage('tc',this)">TC</button>
 </div>
 
@@ -272,6 +273,27 @@ tr:hover td{background:#f8fafc}
   </div>
 </div>
 
+<div id="page-retiros" class="page">
+  <div style="background:var(--card);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h3 style="font-size:15px;font-weight:700">Retiros de Socios por Mes</h3>
+    </div>
+  </div>
+  <div class="kpi-grid" id="kpi-retiros"></div>
+  <div class="tbox">
+    <div class="thead-row"><h3>Ingresar retiro por mes</h3></div>
+    <div class="sx"><table>
+      <thead><tr>
+        <th>Mes</th>
+        <th class="num">Retiro $</th>
+        <th class="num">Retiro USD</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="t-retiros"></tbody>
+    </table></div>
+  </div>
+</div>
+
 <div id="page-tc" class="page">
   <div class="proj-note">💡 TC blue venta, último día hábil de cada mes. Podés editar y recalcular.</div>
   <div class="cmp-table-wrap">
@@ -370,6 +392,7 @@ function showPage(name,btn){
   if(name==='abiertos') initAbiertos();
   if(name==='tc') initTC();
   if(name==='gastos') initGastos();
+  if(name==='retiros') initRetiros();
 }
 
 // ── SELECTS & MODE ───────────────────────────────────────
@@ -558,6 +581,22 @@ function renderCuadroResumen(groups){
     const prevNetaUSD=prev?+(prev.ganancia-prevGastosPeriodUSD).toFixed(2):0;
     tbl+=`<tr style="background:#1a2744"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#fff;font-size:13px">GANANCIA NETA</td></tr>`;
     tbl+=row('Ganancia neta USD', netaUSD, prev?prevNetaUSD:null, fmtU, true, netaUSD>=0?'#16a34a':'#dc2626');
+
+    // RETIROS
+    const retirosPeriodUSD=gastosMonths.reduce((a,m)=>{return a+(getRetiroMes(m).usd||0);},0);
+    const prevRetirosPeriodUSD=prev?groups[1].months.reduce((a,m)=>{return a+(getRetiroMes(m).usd||0);},0):0;
+    const retirosPeriodARS=gastosMonths.reduce((a,m)=>{return a+(getRetiroMes(m).ars||0);},0);
+    const hasRetiros=retirosPeriodUSD>0||retirosPeriodARS>0;
+    if(hasRetiros){
+      tbl+=`<tr style="background:#fef3c7"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#b45309;font-size:13px">RETIROS SOCIOS</td></tr>`;
+      tbl+=row('Retiros en pesos', retirosPeriodARS, prev?prevRetirosPeriodARS:null, fmtP, false, '#b45309');
+      tbl+=row('Retiros en USD', retirosPeriodUSD, prev?prevRetirosPeriodUSD:null, fmtU, false, '#b45309');
+      // Ahorro
+      const ahorroUSD=+(netaUSD-retirosPeriodUSD).toFixed(2);
+      const prevAhorroUSD=prev?+(prevNetaUSD-prevRetirosPeriodUSD).toFixed(2):null;
+      tbl+=`<tr style="background:#1a2744"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#fff;font-size:13px">DIFERENCIA (AHORRO)</td></tr>`;
+      tbl+=row('Ahorro USD', ahorroUSD, prev?prevAhorroUSD:null, fmtU, true, ahorroUSD>=0?'#16a34a':'#dc2626');
+    }
   }
 
   // RESERVAS
@@ -937,6 +976,71 @@ function getGastosMes(mes){
   return GASTOS_DATA[mes];
 }
 
+// ── RETIROS ──────────────────────────────────────────────
+const RETIROS_KEY='aventura_retiros'; // {mes: {ars, usd}}
+let RETIROS_DATA={};
+
+function loadRetirosData(){
+  try{const s=localStorage.getItem(RETIROS_KEY);if(s)RETIROS_DATA=JSON.parse(s);}catch(e){}
+}
+
+function saveRetirosData(){
+  localStorage.setItem(RETIROS_KEY,JSON.stringify(RETIROS_DATA));
+}
+
+function initRetiros(){
+  loadRetirosData();
+  // KPIs
+  const meses=Object.keys(RETIROS_DATA);
+  const totalARS=meses.reduce((a,m)=>a+(RETIROS_DATA[m].ars||0),0);
+  const totalUSD=meses.reduce((a,m)=>a+(RETIROS_DATA[m].usd||0),0);
+  $('kpi-retiros').innerHTML=meses.length?`
+    <div class="kpi o"><div class="kl">Total retiros $ (acum.)</div><div class="kv">${fmtP(totalARS)}</div><div class="ks">${meses.length} meses cargados</div></div>
+    <div class="kpi o"><div class="kl">Total retiros USD (acum.)</div><div class="kv">${fmtU(totalUSD)}</div><div class="ks">&nbsp;</div></div>
+  `:'';
+
+  // Table - show all months from allMeses
+  const tb=$('t-retiros'); tb.innerHTML='';
+  [...allMeses].reverse().forEach(mes=>{
+    const r=RETIROS_DATA[mes]||{ars:0,usd:0};
+    const tc=TC[mes]||TC_BASE[mes]||1425;
+    tb.innerHTML+=`<tr>
+      <td><strong>${mes}</strong></td>
+      <td class="num">
+        <input type="number" id="ret-${mes}" value="${r.ars||''}" placeholder="0"
+          style="width:140px;padding:5px 8px;border:1px solid var(--brd);border-radius:5px;font-size:13px;text-align:right"
+          onchange="saveRetiroMes('${mes}')">
+      </td>
+      <td class="num" id="ret-usd-${mes}" style="color:var(--mut)">${r.usd?fmtU(r.usd):'–'}</td>
+      <td><button onclick="clearRetiroMes('${mes}')" style="padding:3px 8px;border:1px solid var(--brd);border-radius:4px;background:#fff;cursor:pointer;font-size:11px">✕</button></td>
+    </tr>`;
+  });
+}
+
+function saveRetiroMes(mes){
+  const inp=document.getElementById('ret-'+mes);
+  const ars=parseFloat(inp.value)||0;
+  const tc=TC[mes]||TC_BASE[mes]||1425;
+  const usd=+(ars/tc).toFixed(2);
+  RETIROS_DATA[mes]={ars,usd};
+  saveRetirosData();
+  const usdEl=document.getElementById('ret-usd-'+mes);
+  if(usdEl) usdEl.textContent=usd>0?fmtU(usd):'–';
+  // Refresh ventas if active
+  if($('page-ventas').classList.contains('active')) renderVentas();
+}
+
+function clearRetiroMes(mes){
+  delete RETIROS_DATA[mes];
+  saveRetirosData();
+  initRetiros();
+  if($('page-ventas').classList.contains('active')) renderVentas();
+}
+
+function getRetiroMes(mes){
+  return RETIROS_DATA[mes]||{ars:0,usd:0};
+}
+
 // ── TC ───────────────────────────────────────────────────
 function initTC(){
   const tb=$('t-tc');tb.innerHTML='';
@@ -974,6 +1078,13 @@ function recalcTC(){
   // 3. Recalcular gastos USD con nuevos TC
   // Recargar desde localStorage por si acaso
   try{const s=localStorage.getItem(GASTOS_KEY);if(s)GASTOS_DATA=JSON.parse(s);}catch(e){}
+  try{const s=localStorage.getItem(RETIROS_KEY);if(s)RETIROS_DATA=JSON.parse(s);}catch(e){}
+  // Recalcular retiros USD
+  Object.keys(RETIROS_DATA).forEach(mes=>{
+    const tc=TC[mes]||TC_BASE[mes]||1425;
+    RETIROS_DATA[mes].usd=+(RETIROS_DATA[mes].ars/tc).toFixed(2);
+  });
+  saveRetirosData();
   Object.keys(GASTOS_DATA).forEach(mes=>{
     const tc=TC[mes]||TC_BASE[mes]||1425;
     const items=GASTOS_DATA[mes].items.map(r=>({...r,importeUSD:+(r.importe/tc).toFixed(2)}));
@@ -1213,6 +1324,7 @@ function renderPag(id,total,cur,cb){
 const tcSaved=localStorage.getItem('aventura_tc');
 if(tcSaved){try{const t=JSON.parse(tcSaved);Object.assign(TC,t);}catch(e){}}
 loadGastosData();
+loadRetirosData();
 initSelects();
 renderVentas();
 loadOperacional();
