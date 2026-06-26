@@ -1012,7 +1012,7 @@ function initRetiros(){
           style="width:140px;padding:5px 8px;border:1px solid var(--brd);border-radius:5px;font-size:13px;text-align:right"
           onchange="saveRetiroMes('${mes}')">
       </td>
-      <td class="num" id="ret-usd-${mes}" style="color:var(--mut)">${r.usd?fmtU(r.usd):'–'}</td>
+      <td class="num" id="ret-usd-${mes}" style="color:${r.usd<0?'var(--red)':r.usd>0?'var(--mut)':'var(--mut)'}">${Math.abs(r.usd||0)>0.01?fmtU(r.usd):'–'}</td>
       <td><button onclick="clearRetiroMes('${mes}')" style="padding:3px 8px;border:1px solid var(--brd);border-radius:4px;background:#fff;cursor:pointer;font-size:11px">✕</button></td>
     </tr>`;
   });
@@ -1020,13 +1020,16 @@ function initRetiros(){
 
 function saveRetiroMes(mes){
   const inp=document.getElementById('ret-'+mes);
-  const ars=parseFloat(inp.value)||0;
+  const val=inp.value.trim();
+  if(val===''||val===null){return;}
+  const ars=parseFloat(val);
+  if(isNaN(ars)){return;}
   const tc=TC[mes]||TC_BASE[mes]||1425;
   const usd=+(ars/tc).toFixed(2);
   RETIROS_DATA[mes]={ars,usd};
   saveRetirosData();
   const usdEl=document.getElementById('ret-usd-'+mes);
-  if(usdEl) usdEl.textContent=usd>0?fmtU(usd):'–';
+  if(usdEl) usdEl.textContent=Math.abs(usd)>0.01?fmtU(usd):'–';
   // Refresh ventas if active
   if($('page-ventas').classList.contains('active')) renderVentas();
 }
