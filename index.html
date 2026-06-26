@@ -584,8 +584,9 @@ function renderCuadroResumen(groups){
 
     // RETIROS
     const retirosPeriodUSD=gastosMonths.reduce((a,m)=>{return a+(getRetiroMes(m).usd||0);},0);
-    const prevRetirosPeriodUSD=prev?groups[1].months.reduce((a,m)=>{return a+(getRetiroMes(m).usd||0);},0):0;
     const retirosPeriodARS=gastosMonths.reduce((a,m)=>{return a+(getRetiroMes(m).ars||0);},0);
+    const prevRetirosPeriodUSD=prev?groups[1].months.reduce((a,m)=>{return a+(getRetiroMes(m).usd||0);},0):0;
+    const prevRetirosPeriodARS=prev?groups[1].months.reduce((a,m)=>{return a+(getRetiroMes(m).ars||0);},0):0;
     const hasRetiros=retirosPeriodUSD>0||retirosPeriodARS>0;
     if(hasRetiros){
       tbl+=`<tr style="background:#fef3c7"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#b45309;font-size:13px">RETIROS SOCIOS</td></tr>`;
@@ -1330,12 +1331,6 @@ renderVentas();
 loadOperacional();
 </script>
 
-<script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('sw.js').catch(e=>console.log('SW error:',e));
-  });
-}
-</script>
+<!-- SW removed -->
 </body>
 </html>
