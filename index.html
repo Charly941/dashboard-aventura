@@ -378,7 +378,7 @@ function importOperacional(){
   input.click();
 }
 
-function getOp(id){return OPERACIONAL[id]||{operador:'',obs:''};}
+function getOp(id){const o=OPERACIONAL[id]||{};return {operador:o.operador||'',obs:o.obs||'',done:o.done===true};}
 function setOp(id,field,val){
   if(!OPERACIONAL[id])OPERACIONAL[id]={operador:'',obs:''};
   OPERACIONAL[id][field]=val;
@@ -770,8 +770,8 @@ function initAbiertos(){
 // Renders a single file row
 function fileRow(r){
   const scP=r.saldo_cli,scU=r.saldo_cli_usd,soP=r.saldo_op,soU=r.saldo_op_usd;
-  const op=getOp(r.ID_RES);
-  if(op.done) return '';
+  const op=getOp(r.ID_RES)||{operador:'',obs:'',done:false};
+  if(op.done===true) return '';
   const cobPag=(scU>0.01?'<span class="bdg br">COBRAR</span>':scU<-0.01?'<span class="bdg bgy">A FAVOR</span>':'–')+
               (soU>0.01?' <span class="bdg bo">PAGAR</span>':soU<-0.01?' <span class="bdg bgy">A FAVOR</span>':'');
   return `<tr>
