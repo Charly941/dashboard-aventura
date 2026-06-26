@@ -76,6 +76,10 @@ tr:hover td{background:#f8fafc}
 .modal p{font-size:13px;color:var(--mut);margin-bottom:0;line-height:1.5}
 .modal .spinner{width:36px;height:36px;border:3px solid var(--brd);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
 @keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:768px){
+  .hide-mobile{display:none!important}
+  .tbox .sx{overflow-x:visible}
+}
 </style>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1a2744">
@@ -228,15 +232,15 @@ tr:hover td{background:#f8fafc}
         <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">ID</th>
         <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Cliente</th>
         <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Viaje</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Salida</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Cli USD</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Op USD</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Cli $</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Op $</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Cobrar/Pagar</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Salida</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Cli USD</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Op USD</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Cli $</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:right;white-space:nowrap">Saldo Op $</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Cobrar/Pagar</th>
         <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Observaciones</th>
         <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;white-space:nowrap">Operador</th>
-        <th style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:center;white-space:nowrap">✓</th>
+        <th class="hide-mobile" style="background:#111;color:#fff;font-size:14px;font-weight:800;padding:12px 10px;text-align:center;white-space:nowrap">✓</th>
       </tr></thead>
       <tbody id="t-open-detail"></tbody>
       <tfoot id="t-open-foot"></tfoot>
@@ -774,19 +778,19 @@ function fileRow(r){
     <td style="font-weight:700">${r.ID_RES}</td>
     <td><strong>${(r.NOM_CLI||'–').split(' ')[0]}</strong></td>
     <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.DETALLE_VIAJE||'–'}</td>
-    <td>${r.FEC_SAL}</td>
-    <td class="num ${Math.abs(scU)>0.01?'warn':''}">${Math.abs(scU)>0.01?fmtU(scU):'–'}</td>
-    <td class="num ${Math.abs(soU)>0.01?'warn':''}">${Math.abs(soU)>0.01?fmtU(soU):'–'}</td>
-    <td class="num ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
-    <td class="num ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
-    <td style="text-align:center">${cobPag}</td>
+    <td class="hide-mobile">${r.FEC_SAL}</td>
+    <td class="num hide-mobile ${Math.abs(scU)>0.01?'warn':''}">${Math.abs(scU)>0.01?fmtU(scU):'–'}</td>
+    <td class="num hide-mobile ${Math.abs(soU)>0.01?'warn':''}">${Math.abs(soU)>0.01?fmtU(soU):'–'}</td>
+    <td class="num hide-mobile ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
+    <td class="num hide-mobile ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
+    <td class="hide-mobile" style="text-align:center">${cobPag}</td>
     <td><input type="text" value="${op.obs||''}" placeholder="Observaciones"
       style="width:180px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px;font-weight:700;color:#dc2626"
       onchange="setOp(${r.ID_RES},'obs',this.value);saveOperacional();renderAbiertosBody()"></td>
     <td><input type="text" value="${op.operador||''}" placeholder="Operador"
       style="width:110px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
       onchange="setOp(${r.ID_RES},'operador',this.value);saveOperacional()"></td>
-    <td style="text-align:center"><input type="checkbox" ${op.done?'checked':''}
+    <td class="hide-mobile" style="text-align:center"><input type="checkbox" ${op.done?'checked':''}
       title="Tildar para ocultar este file"
       onchange="setOp(${r.ID_RES},'done',this.checked);saveOperacional();renderAbiertosBody()"></td>
   </tr>`;
