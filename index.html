@@ -1176,6 +1176,17 @@ function loadExcel(input){
           alert('0 filas procesadas de '+rows.length+'.\n'+nullRows+' filas con error.\n\nFila 1:\n'+dbg);
           return;
         }
+        // Verify a known file to confirm data is correct
+        const sample=detail.find(r=>r.ID_RES==5813)||detail[0];
+        console.log('Sample file after processRows:',JSON.stringify({
+          ID_RES:sample.ID_RES, NOM_CLI:sample.NOM_CLI,
+          VENTA:sample.VENTA, VENTA_USD:sample.VENTA_USD,
+          COSTO:sample.COSTO, COSTO_USD:sample.COSTO_USD,
+          saldo_cli:sample.saldo_cli, saldo_cli_usd:sample.saldo_cli_usd,
+          cie_res:sample.cie_res, cie_cob:sample.cie_cob, cie_op:sample.cie_op,
+          cerrado:sample.cie_res&&sample.cie_cob&&sample.cie_op
+        }));
+        console.log('Total procesadas:',detail.length,'de',rows.length);
         reloadDashboard(detail,file.name);
         input.value='';
       },80);
