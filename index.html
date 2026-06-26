@@ -587,7 +587,7 @@ function renderCuadroResumen(groups){
     const retirosPeriodARS=gastosMonths.reduce((a,m)=>{return a+(getRetiroMes(m).ars||0);},0);
     const prevRetirosPeriodUSD=prev?groups[1].months.reduce((a,m)=>{return a+(getRetiroMes(m).usd||0);},0):0;
     const prevRetirosPeriodARS=prev?groups[1].months.reduce((a,m)=>{return a+(getRetiroMes(m).ars||0);},0):0;
-    const hasRetiros=retirosPeriodUSD>0||retirosPeriodARS>0;
+    const hasRetiros=Math.abs(retirosPeriodUSD)>0.01||Math.abs(retirosPeriodARS)>0.5;
     if(hasRetiros){
       tbl+=`<tr style="background:#fef3c7"><td colspan="${colSpan}" style="padding:7px 14px;font-weight:700;color:#b45309;font-size:13px">RETIROS SOCIOS</td></tr>`;
       tbl+=row('Retiros en pesos', retirosPeriodARS, prev?prevRetirosPeriodARS:null, fmtP, false, '#b45309');
