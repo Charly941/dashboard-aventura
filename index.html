@@ -825,38 +825,42 @@ function blockHeader(label, records, color){
 }
 
 function renderAbiertosBody(){
-  const all=[...VENCIDOS_OPEN,...FUTUROS_OPEN];
-  $('abiertos-count').textContent=`Files Abiertos — ${all.length} total (${VENCIDOS_OPEN.length} ya salidos + ${FUTUROS_OPEN.length} futuros)`;
+  const isMobile=window.innerWidth<=768;
+  const now=new Date();
+  const curMes=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const nextMes=`${now.getFullYear()}-${String(now.getMonth()+2).padStart(2,'0')}`;
+  // On mobile: only show files departing this month or next
+  const filterMobile=r=>!isMobile||(r.mes_salida===curMes||r.mes_salida===nextMes);
+  const all=[...VENCIDOS_OPEN,...FUTUROS_OPEN].filter(filterMobile);
+  $('abiertos-count').textContent=isMobile?`Files Abiertos — este mes y próximo`:`Files Abiertos — ${VENCIDOS_OPEN.length+FUTUROS_OPEN.length} total`;
+  const vencidosFilt=VENCIDOS_OPEN.filter(filterMobile);
+  const futurosFilt=FUTUROS_OPEN.filter(filterMobile);
   let html='';
 
-  // ── BLOQUE 1: Ya salidos, cierre pendiente — un solo bloque sin agrupar por mes ──
-  if(VENCIDOS_OPEN.length){
-    html+=blockHeader('⚠️ Ya salidos – cierre pendiente (ordenados por fecha de salida)', VENCIDOS_OPEN, '#991b1b');
-    VENCIDOS_OPEN.forEach(r=>html+=fileRow(r));
-    html+=subtotalRow('Subtotal ya salidos', VENCIDOS_OPEN);
+  if(vencidosFilt.length){
+    html+=blockHeader('⚠️ Ya salidos – cierre pendiente', vencidosFilt, '#991b1b');
+    vencidosFilt.forEach(r=>html+=fileRow(r));
+    html+=subtotalRow('Subtotal ya salidos', vencidosFilt);
     html+=`<tr><td colspan="11" style="height:10px;background:var(--bg)"></td></tr>`;
   }
 
-  // ── BLOQUES POR MES: Salidas futuras, un bloque por mes ──
-  if(FUTUROS_OPEN.length){
-    // Group by mes_salida (from FEC_SAL, not FEC_APE)
+  if(futurosFilt.length){
     const byMes={};
-    FUTUROS_OPEN.forEach(r=>{
+    futurosFilt.forEach(r=>{
       const mes=r.FEC_SAL?r.FEC_SAL.slice(0,7):r.mes_salida;
       if(!byMes[mes])byMes[mes]=[];
       byMes[mes].push(r);
     });
-    const meses=Object.keys(byMes).sort();
-    meses.forEach((mes,i)=>{
+    Object.keys(byMes).sort().forEach((mes,i,arr)=>{
       const recs=byMes[mes];
       html+=blockHeader(`📅 Salida: ${mes}`, recs, '#1a2744');
       recs.forEach(r=>html+=fileRow(r));
       html+=subtotalRow(`Subtotal ${mes}`, recs);
-      if(i<meses.length-1) html+=`<tr><td colspan="11" style="height:6px;background:var(--bg)"></td></tr>`;
+      if(i<arr.length-1) html+=`<tr><td colspan="11" style="height:6px;background:var(--bg)"></td></tr>`;
     });
   }
 
-  $('t-open-detail').innerHTML=html;
+    $('t-open-detail').innerHTML=html;
 
   // Grand total footer
   const cP=all.reduce((a,r)=>a+r.saldo_cli,0),cU=all.reduce((a,r)=>a+r.saldo_cli_usd,0);
