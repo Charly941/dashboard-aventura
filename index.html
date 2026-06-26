@@ -772,8 +772,20 @@ function fileRow(r){
   const scP=r.saldo_cli,scU=r.saldo_cli_usd,soP=r.saldo_op,soU=r.saldo_op_usd;
   const op=getOp(r.ID_RES)||{operador:'',obs:'',done:false};
   if(op.done===true) return '';
+  const isMob=window.innerWidth<=768;
   const cobPag=(scU>0.01?'<span class="bdg br">COBRAR</span>':scU<-0.01?'<span class="bdg bgy">A FAVOR</span>':'–')+
               (soU>0.01?' <span class="bdg bo">PAGAR</span>':soU<-0.01?' <span class="bdg bgy">A FAVOR</span>':'');
+  // Mobile: show text, no inputs
+  const obsCell=isMob
+    ?`<td style="color:#dc2626;font-weight:700;font-size:12px">${op.obs||'–'}</td>`
+    :`<td><input type="text" value="${op.obs||''}" placeholder="Observaciones"
+      style="width:180px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px;font-weight:700;color:#dc2626"
+      onchange="setOp(${r.ID_RES},'obs',this.value);saveOperacional();renderAbiertosBody()"></td>`;
+  const opCell=isMob
+    ?`<td style="font-size:12px">${op.operador||'–'}</td>`
+    :`<td><input type="text" value="${op.operador||''}" placeholder="Operador"
+      style="width:110px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
+      onchange="setOp(${r.ID_RES},'operador',this.value);saveOperacional()"></td>`;
   return `<tr>
     <td style="font-weight:700">${r.ID_RES}</td>
     <td><strong>${(r.NOM_CLI||'–').split(' ')[0]}</strong></td>
@@ -784,12 +796,8 @@ function fileRow(r){
     <td class="num hide-mobile ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
     <td class="num hide-mobile ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
     <td class="hide-mobile" style="text-align:center">${cobPag}</td>
-    <td><input type="text" value="${op.obs||''}" placeholder="Observaciones"
-      style="width:180px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px;font-weight:700;color:#dc2626"
-      onchange="setOp(${r.ID_RES},'obs',this.value);saveOperacional();renderAbiertosBody()"></td>
-    <td><input type="text" value="${op.operador||''}" placeholder="Operador"
-      style="width:110px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
-      onchange="setOp(${r.ID_RES},'operador',this.value);saveOperacional()"></td>
+    ${obsCell}
+    ${opCell}
     <td class="hide-mobile" style="text-align:center"><input type="checkbox" ${op.done?'checked':''}
       title="Tildar para ocultar este file"
       onchange="setOp(${r.ID_RES},'done',this.checked);saveOperacional();renderAbiertosBody()"></td>
