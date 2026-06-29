@@ -122,13 +122,13 @@ tr:hover td{background:#f8fafc}
 
 <div class="tabs">
   <button class="tab active" onclick="showPage('ventas',this)">Ventas</button>
-  <button class="tab" onclick="showPage('saldos',this)">Saldos</button>
-  <button class="tab" onclick="showPage('proyeccion',this)">Proyección</button>
-  <button class="tab" onclick="showPage('detalle',this)">Detalle</button>
   <button class="tab" onclick="showPage('abiertos',this)">Files Abiertos</button>
+  <button class="tab" onclick="showPage('proyeccion',this)">Proyección</button>
   <button class="tab" onclick="showPage('gastos',this)">Gastos</button>
   <button class="tab" onclick="showPage('retiros',this)">Retiros</button>
   <button class="tab" onclick="showPage('tc',this)">TC</button>
+  <button class="tab" onclick="showPage('saldos',this)">Saldos</button>
+  <button class="tab" onclick="showPage('detalle',this)">Detalle</button>
 </div>
 
 <div class="wrap">
@@ -182,6 +182,24 @@ tr:hover td{background:#f8fafc}
 </div>
 
 <div id="page-proyeccion" class="page">
+  <div style="background:var(--card);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:14px">
+    <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">💰 Saldo Inicial en Caja</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;font-weight:600;color:var(--mut)">Saldo $</label>
+        <input type="number" id="caja-ars" placeholder="0" style="width:160px;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:14px;font-weight:700" onchange="saveCaja()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:13px;font-weight:600;color:var(--mut)">Saldo USD</label>
+        <input type="number" id="caja-usd" placeholder="0" style="width:160px;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:14px;font-weight:700" onchange="saveCaja()">
+      </div>
+      <button onclick="renderFinanciero()" style="padding:7px 14px;border-radius:6px;background:var(--acc);color:#fff;border:none;font-size:13px;cursor:pointer">Recalcular</button>
+    </div>
+  </div>
+  <div class="cmp-table-wrap" style="margin-bottom:14px">
+    <div class="cmp-thead" style="font-size:14px;font-weight:700">📊 Cuadro Financiero Futuro</div>
+    <div class="sx" id="financiero-wrap"></div>
+  </div>
   <div class="proj-note" id="proy-note">📊 Cargando proyección...</div>
   <div class="chart-row two">
     <div class="cbox"><h3>Ventas & Ganancia Proyectadas (USD)</h3><canvas id="cProy"></canvas></div>
@@ -392,7 +410,7 @@ function showPage(name,btn){
   $('page-'+name).classList.add('active'); btn.classList.add('active');
   if(name==='ventas') renderVentas();
   if(name==='saldos'){initSaldosKPI();renderCobros();renderOps();}
-  if(name==='proyeccion') initProy();
+  if(name==='proyeccion'){initProy();loadCaja();renderFinanciero();}
   if(name==='detalle') renderDetalle();
   if(name==='abiertos') initAbiertos();
   if(name==='tc') initTC();
@@ -1077,6 +1095,120 @@ function clearRetiroMes(mes){
 
 function getRetiroMes(mes){
   return RETIROS_DATA[mes]||{ars:0,usd:0};
+}
+
+// ── CAJA Y FINANCIERO ───────────────────────────────────
+const CAJA_KEY='aventura_caja';
+
+function loadCaja(){
+  try{
+    const s=localStorage.getItem(CAJA_KEY);
+    if(s){const d=JSON.parse(s);
+      const ia=document.getElementById('caja-ars');
+      const iu=document.getElementById('caja-usd');
+      if(ia&&d.ars) ia.value=d.ars;
+      if(iu&&d.usd) iu.value=d.usd;
+    }
+  }catch(e){}
+}
+
+function saveCaja(){
+  const ars=parseFloat(document.getElementById('caja-ars').value)||0;
+  const usd=parseFloat(document.getElementById('caja-usd').value)||0;
+  localStorage.setItem(CAJA_KEY,JSON.stringify({ars,usd}));
+}
+
+function renderFinanciero(){
+  saveCaja();
+  const cajaARS=parseFloat(document.getElementById('caja-ars').value)||0;
+  const cajaUSD=parseFloat(document.getElementById('caja-usd').value)||0;
+
+  // Group open files by mes_salida
+  const cobARS={}, cobUSD={}, pagARS={}, pagUSD={};
+  [...VENCIDOS_OPEN,...FUTUROS_OPEN].forEach(r=>{
+    const m=r.mes_salida||r.FEC_SAL.slice(0,7);
+    cobARS[m]=(cobARS[m]||0)+(r.saldo_cli||0);
+    cobUSD[m]=(cobUSD[m]||0)+(r.saldo_cli_usd||0);
+    pagARS[m]=(pagARS[m]||0)+(r.saldo_op||0);
+    pagUSD[m]=(pagUSD[m]||0)+(r.saldo_op_usd||0);
+  });
+
+  // Get all months from today forward
+  const now=new Date();
+  const meses=[];
+  for(let i=0;i<13;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    meses.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+
+  // Build table
+  let html='<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:900px">';
+  // Header
+  html+='<thead><tr style="background:#1a2744;color:#fff">';
+  html+='<th style="padding:8px 10px;text-align:left;white-space:nowrap">Concepto</th>';
+  meses.forEach(m=>html+=`<th style="padding:8px 8px;text-align:right;white-space:nowrap">${m}</th>`);
+  html+='</tr></thead><tbody>';
+
+  // Rows - PESOS
+  html+='<tr style="background:#e8f0fe"><td colspan="'+(meses.length+1)+'" style="padding:6px 10px;font-weight:700;color:#1a56db">PESOS ($)</td></tr>';
+
+  const rowARS=(label,vals,bold=false,color='')=>{
+    const s=bold?'font-weight:700':'';
+    html+=`<tr><td style="padding:6px 10px;${s};color:${color||'inherit'}">${label}</td>`;
+    vals.forEach(v=>{
+      const c=v>0?'var(--grn)':v<0?'var(--red)':'var(--mut)';
+      html+=`<td style="padding:6px 8px;text-align:right;${s};color:${Math.abs(v)>0.5?c:'var(--mut)'}">${Math.abs(v)>0.5?fmtP(v):'–'}</td>`;
+    });
+    html+='</tr>';
+  };
+
+  rowARS('Saldo anterior $', meses.map((m,i)=>{
+    if(i===0) return cajaARS;
+    let acum=cajaARS;
+    for(let j=0;j<i;j++) acum+=((cobARS[meses[j]]||0)-(pagARS[meses[j]]||0));
+    return acum;
+  }));
+  rowARS('Cobros clientes $', meses.map(m=>cobARS[m]||0));
+  rowARS('Pagos operadores $', meses.map(m=>-(pagARS[m]||0)));
+
+  // Saldo del mes
+  const saldoMesARS=meses.map(m=>(cobARS[m]||0)-(pagARS[m]||0));
+  rowARS('Saldo del mes $', saldoMesARS, true);
+
+  // Acumulado
+  let acumARS=cajaARS;
+  rowARS('Acumulado $', meses.map(m=>{acumARS+=(cobARS[m]||0)-(pagARS[m]||0);return acumARS;}), true, '#1a2744');
+
+  // DOLARES
+  html+='<tr style="background:#e8f0fe"><td colspan="'+(meses.length+1)+'" style="padding:6px 10px;font-weight:700;color:#1a56db">DÓLARES (USD)</td></tr>';
+
+  const rowUSD=(label,vals,bold=false,color='')=>{
+    const s=bold?'font-weight:700':'';
+    html+=`<tr><td style="padding:6px 10px;${s};color:${color||'inherit'}">${label}</td>`;
+    vals.forEach(v=>{
+      const c=v>0?'var(--grn)':v<0?'var(--red)':'var(--mut)';
+      html+=`<td style="padding:6px 8px;text-align:right;${s};color:${Math.abs(v)>0.01?c:'var(--mut)'}">${Math.abs(v)>0.01?fmtU(v):'–'}</td>`;
+    });
+    html+='</tr>';
+  };
+
+  rowUSD('Saldo anterior USD', meses.map((m,i)=>{
+    if(i===0) return cajaUSD;
+    let acum=cajaUSD;
+    for(let j=0;j<i;j++) acum+=((cobUSD[meses[j]]||0)-(pagUSD[meses[j]]||0));
+    return acum;
+  }));
+  rowUSD('Cobros clientes USD', meses.map(m=>cobUSD[m]||0));
+  rowUSD('Pagos operadores USD', meses.map(m=>-(pagUSD[m]||0)));
+
+  const saldoMesUSD=meses.map(m=>(cobUSD[m]||0)-(pagUSD[m]||0));
+  rowUSD('Saldo del mes USD', saldoMesUSD, true);
+
+  let acumUSD=cajaUSD;
+  rowUSD('Acumulado USD', meses.map(m=>{acumUSD+=(cobUSD[m]||0)-(pagUSD[m]||0);return acumUSD;}), true, '#1a2744');
+
+  html+='</tbody></table>';
+  document.getElementById('financiero-wrap').innerHTML=html;
 }
 
 // ── TC ───────────────────────────────────────────────────
