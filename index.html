@@ -837,60 +837,66 @@ function blockHeader(label, records, color){
 
 function renderAbiertosBody(){
   const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||window.innerWidth<=768;
-  console.log('renderAbiertosBody isMobile='+isMobile+' FUTUROS='+FUTUROS_OPEN.length+' VENCIDOS='+VENCIDOS_OPEN.length);
-  // Test first fileRow
-  if(FUTUROS_OPEN.length>0){
-    const testRow=fileRow(FUTUROS_OPEN[0]);
-    console.log('Test fileRow result length='+testRow.length+' starts='+testRow.slice(0,50));
-  }
   const now=new Date();
-  const curMes=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const nextMes=`${now.getFullYear()}-${String(now.getMonth()+2).padStart(2,'0')}`;
-  // On mobile: only show files departing this month or next
-  const filterMobile=r=>!isMobile||(r.mes_salida===curMes||r.mes_salida===nextMes);
-  const all=[...VENCIDOS_OPEN,...FUTUROS_OPEN].filter(filterMobile);
-  $('abiertos-count').textContent=isMobile?`Files Abiertos — este mes y próximo`:`Files Abiertos — ${VENCIDOS_OPEN.length+FUTUROS_OPEN.length} total`;
-  const vencidosFilt=VENCIDOS_OPEN.filter(filterMobile);
-  const futurosFilt=FUTUROS_OPEN.filter(filterMobile);
-  let html='';
+  const curMes=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const nextMes=now.getFullYear()+'-'+String(now.getMonth()+2).padStart(2,'0');
 
-  if(vencidosFilt.length){
-    html+=blockHeader('⚠️ Ya salidos – cierre pendiente', vencidosFilt, '#991b1b');
-    vencidosFilt.forEach(r=>html+=fileRow(r));
-    html+=subtotalRow('Subtotal ya salidos', vencidosFilt);
-    html+=`<tr><td colspan="11" style="height:10px;background:var(--bg)"></td></tr>`;
+  if(isMobile){
+    const mobileFiles=FUTUROS_OPEN.filter(function(r){return r.mes_salida===curMes||r.mes_salida===nextMes;});
+    document.getElementById('abiertos-count').textContent='Files — '+curMes+' y '+nextMes+' ('+mobileFiles.length+' files)';
+    let rows='';
+    for(let i=0;i<mobileFiles.length;i++){
+      const r=mobileFiles[i];
+      const op=(OPERACIONAL&&OPERACIONAL[r.ID_RES])||{};
+      const obs=op.obs||'';
+      const oper=op.operador||'';
+      rows+='<tr>';
+      rows+='<td style="padding:5px 4px;font-weight:700">'+r.ID_RES+'</td>';
+      rows+='<td style="padding:5px 4px"><strong>'+((r.NOM_CLI||'').split(' ')[0])+'</strong></td>';
+      rows+='<td style="padding:5px 4px;font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.DETALLE_VIAJE||'').substring(0,25)+'</td>';
+      rows+='<td style="padding:5px 4px;color:#dc2626;font-weight:700;font-size:11px">'+obs+'</td>';
+      rows+='<td style="padding:5px 4px;font-size:11px">'+oper+'</td>';
+      rows+='</tr>';
+    }
+    document.getElementById('t-open-detail').innerHTML=rows;
+    document.getElementById('t-open-foot').innerHTML='';
+    return;
   }
 
-  if(futurosFilt.length){
+  // DESKTOP
+  const all=[...VENCIDOS_OPEN,...FUTUROS_OPEN];
+  document.getElementById('abiertos-count').textContent='Files Abiertos — '+all.length+' total ('+VENCIDOS_OPEN.length+' ya salidos + '+FUTUROS_OPEN.length+' futuros)';
+  let html='';
+  if(VENCIDOS_OPEN.length){
+    html+=blockHeader('⚠️ Ya salidos – cierre pendiente', VENCIDOS_OPEN, '#991b1b');
+    VENCIDOS_OPEN.forEach(function(r){html+=fileRow(r);});
+    html+=subtotalRow('Subtotal ya salidos', VENCIDOS_OPEN);
+    html+='<tr><td colspan="11" style="height:10px;background:var(--bg)"></td></tr>';
+  }
+  if(FUTUROS_OPEN.length){
     const byMes={};
-    futurosFilt.forEach(r=>{
+    FUTUROS_OPEN.forEach(function(r){
       const mes=r.FEC_SAL?r.FEC_SAL.slice(0,7):r.mes_salida;
       if(!byMes[mes])byMes[mes]=[];
       byMes[mes].push(r);
     });
-    Object.keys(byMes).sort().forEach((mes,i,arr)=>{
+    Object.keys(byMes).sort().forEach(function(mes,i,arr){
       const recs=byMes[mes];
-      html+=blockHeader(`📅 Salida: ${mes}`, recs, '#1a2744');
-      recs.forEach(r=>html+=fileRow(r));
-      html+=subtotalRow(`Subtotal ${mes}`, recs);
-      if(i<arr.length-1) html+=`<tr><td colspan="11" style="height:6px;background:var(--bg)"></td></tr>`;
+      html+=blockHeader('📅 Salida: '+mes, recs, '#1a2744');
+      recs.forEach(function(r){html+=fileRow(r);});
+      html+=subtotalRow('Subtotal '+mes, recs);
+      if(i<arr.length-1) html+='<tr><td colspan="11" style="height:6px;background:var(--bg)"></td></tr>';
     });
   }
-
-    $('t-open-detail').innerHTML=html;
-
-  // Grand total footer
-  const cP=all.reduce((a,r)=>a+r.saldo_cli,0),cU=all.reduce((a,r)=>a+r.saldo_cli_usd,0);
-  const oP=all.reduce((a,r)=>a+r.saldo_op,0),oU=all.reduce((a,r)=>a+r.saldo_op_usd,0);
+  document.getElementById('t-open-detail').innerHTML=html;
+  const cP=all.reduce(function(a,r){return a+r.saldo_cli;},0);
+  const cU=all.reduce(function(a,r){return a+r.saldo_cli_usd;},0);
+  const oP=all.reduce(function(a,r){return a+r.saldo_op;},0);
+  const oU=all.reduce(function(a,r){return a+r.saldo_op_usd;},0);
   const tP=cP-oP,tU=cU-oU;
-  $('t-open-foot').innerHTML=`<tr style="background:#1a2744;color:#fff;font-weight:700">
-    <td colspan="4" style="padding:8px 13px">TOTAL GENERAL · ${all.length} files</td>
-    <td class="num" style="color:#fbbf24">${fmtU(cU)}</td>
-    <td class="num" style="color:#fca5a5">${fmtU(oU)}</td>
-    <td class="num" style="color:#fbbf24">${fmtP(cP)}</td>
-    <td class="num" style="color:#fca5a5">${fmtP(oP)}</td>
-  </tr>`;
+  document.getElementById('t-open-foot').innerHTML='<tr style="background:#1a2744;color:#fff;font-weight:700"><td colspan="4" style="padding:8px 13px">TOTAL GENERAL · '+all.length+' files</td><td class="num" style="color:#fbbf24">'+fmtU(cU)+'</td><td class="num" style="color:#fca5a5">'+fmtU(oU)+'</td><td class="num" style="color:#fbbf24">'+fmtP(cP)+'</td><td class="num" style="color:#fca5a5">'+fmtP(oP)+'</td></tr>';
 }
+
 
 // ── GASTOS OFICINA ───────────────────────────────────────
 const GASTOS_KEY='aventura_gastos'; // {mes: {items:[{nombre,importe}], total}}
