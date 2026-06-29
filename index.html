@@ -855,6 +855,7 @@ function renderAbiertosBody(){
       rows+='<td style="padding:5px 4px;font-weight:700">'+r.ID_RES+'</td>';
       rows+='<td style="padding:5px 4px"><strong>'+((r.NOM_CLI||'').split(' ')[0])+'</strong></td>';
       rows+='<td style="padding:5px 4px;font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.DETALLE_VIAJE||'').substring(0,25)+'</td>';
+      rows+='<td style="padding:5px 4px;font-size:11px">'+r.FEC_SAL+'</td>';
       rows+='<td style="padding:5px 4px;color:#dc2626;font-weight:700;font-size:11px">'+obs+'</td>';
       rows+='<td style="padding:5px 4px;font-size:11px">'+oper+'</td>';
       rows+='</tr>';
