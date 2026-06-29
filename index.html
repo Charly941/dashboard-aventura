@@ -337,12 +337,13 @@ const PS=40;
 
 // ── OPERACIONAL (localStorage) ───────────────────────────
 const OP_KEY='aventura_operacional';
+var OPERACIONAL={};
 
 function loadOperacional(){
   try{
     const saved=localStorage.getItem(OP_KEY);
     if(saved) OPERACIONAL=JSON.parse(saved);
-  }catch(e){console.log('Sin datos operacionales previos.');}
+  }catch(e){OPERACIONAL={};}
 }
 
 function saveOperacional(){
