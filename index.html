@@ -769,42 +769,45 @@ function initAbiertos(){
 
 // Renders a single file row
 function fileRow(r){
-  const scP=r.saldo_cli,scU=r.saldo_cli_usd,soP=r.saldo_op,soU=r.saldo_op_usd;
-  const op=getOp(r.ID_RES)||{operador:'',obs:'',done:false};
-  if(op.done===true) return '';
-  const isMob=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||window.innerWidth<=768;
-  const cobPag=(scU>0.01?'<span class="bdg br">COBRAR</span>':scU<-0.01?'<span class="bdg bgy">A FAVOR</span>':'–')+
-              (soU>0.01?' <span class="bdg bo">PAGAR</span>':soU<-0.01?' <span class="bdg bgy">A FAVOR</span>':'');
-  // Mobile: show text, no inputs
-  const obsCell=isMob
-    ?`<td style="color:#dc2626;font-weight:700;font-size:12px">${op.obs||'–'}</td>`
-    :`<td><input type="text" value="${op.obs||''}" placeholder="Observaciones"
-      style="width:180px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px;font-weight:700;color:#dc2626"
-      onchange="setOp(${r.ID_RES},'obs',this.value);saveOperacional();renderAbiertosBody()"></td>`;
-  const opCell=isMob
-    ?`<td style="font-size:12px">${op.operador||'–'}</td>`
-    :`<td><input type="text" value="${op.operador||''}" placeholder="Operador"
-      style="width:110px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px"
-      onchange="setOp(${r.ID_RES},'operador',this.value);saveOperacional()"></td>`;
-  return `<tr>
-    <td style="font-weight:700">${r.ID_RES}</td>
-    <td><strong>${(r.NOM_CLI||'–').split(' ')[0]}</strong></td>
-    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.DETALLE_VIAJE||'–'}</td>
-    <td class="hide-mobile">${r.FEC_SAL}</td>
-    <td class="num hide-mobile ${Math.abs(scU)>0.01?'warn':''}">${Math.abs(scU)>0.01?fmtU(scU):'–'}</td>
-    <td class="num hide-mobile ${Math.abs(soU)>0.01?'warn':''}">${Math.abs(soU)>0.01?fmtU(soU):'–'}</td>
-    <td class="num hide-mobile ${Math.abs(scP)>0.5?'warn':''}">${Math.abs(scP)>0.5?fmtP(scP):'–'}</td>
-    <td class="num hide-mobile ${Math.abs(soP)>0.5?'warn':''}">${Math.abs(soP)>0.5?fmtP(soP):'–'}</td>
-    <td class="hide-mobile" style="text-align:center">${cobPag}</td>
-    ${obsCell}
-    ${opCell}
-    <td class="hide-mobile" style="text-align:center"><input type="checkbox" ${op.done?'checked':''}
-      title="Tildar para ocultar este file"
-      onchange="setOp(${r.ID_RES},'done',this.checked);saveOperacional();renderAbiertosBody()"></td>
-  </tr>`;
+  try{
+    const op=OPERACIONAL[r.ID_RES]||{};
+    if(op.done===true) return '';
+    const isMob=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||window.innerWidth<=768;
+    const scP=r.saldo_cli||0, scU=r.saldo_cli_usd||0;
+    const soP=r.saldo_op||0,  soU=r.saldo_op_usd||0;
+    const obs=op.obs||'';
+    const oper=op.operador||'';
+    if(isMob){
+      return '<tr>'
+        +'<td style="font-weight:700;padding:6px 8px">'+r.ID_RES+'</td>'
+        +'<td style="padding:6px 8px"><strong>'+((r.NOM_CLI||'').split(' ')[0])+'</strong></td>'
+        +'<td style="padding:6px 8px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.DETALLE_VIAJE||'')+'</td>'
+        +'<td style="padding:6px 8px;color:#dc2626;font-weight:700">'+obs+'</td>'
+        +'<td style="padding:6px 8px">'+oper+'</td>'
+        +'</tr>';
+    }
+    const cobPag=(scU>0.01?'<span class="bdg br">COBRAR</span>':scU<-0.01?'<span class="bdg bgy">A FAVOR</span>':'–')
+               +(soU>0.01?' <span class="bdg bo">PAGAR</span>':soU<-0.01?' <span class="bdg bgy">A FAVOR</span>':'');
+    return '<tr>'
+      +'<td style="font-weight:700">'+r.ID_RES+'</td>'
+      +'<td><strong>'+((r.NOM_CLI||'').split(' ')[0])+'</strong></td>'
+      +'<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+(r.DETALLE_VIAJE||'')+'</td>'
+      +'<td>'+r.FEC_SAL+'</td>'
+      +'<td class="num '+(Math.abs(scU)>0.01?'warn':'')+'">'+( Math.abs(scU)>0.01?fmtU(scU):'–')+'</td>'
+      +'<td class="num '+(Math.abs(soU)>0.01?'warn':'')+'">'+( Math.abs(soU)>0.01?fmtU(soU):'–')+'</td>'
+      +'<td class="num '+(Math.abs(scP)>0.5?'warn':'')+'">'+( Math.abs(scP)>0.5?fmtP(scP):'–')+'</td>'
+      +'<td class="num '+(Math.abs(soP)>0.5?'warn':'')+'">'+( Math.abs(soP)>0.5?fmtP(soP):'–')+'</td>'
+      +'<td style="text-align:center">'+cobPag+'</td>'
+      +'<td><input type="text" value="'+obs+'" placeholder="Observaciones" style="width:180px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px;font-weight:700;color:#dc2626" onchange="setOp('+r.ID_RES+','obs',this.value);saveOperacional();renderAbiertosBody()"></td>'
+      +'<td><input type="text" value="'+oper+'" placeholder="Operador" style="width:110px;padding:3px 6px;border:1px solid var(--brd);border-radius:4px;font-size:12px" onchange="setOp('+r.ID_RES+','operador',this.value);saveOperacional()"></td>'
+      +'<td style="text-align:center"><input type="checkbox" '+(op.done?'checked':'')+' onchange="setOp('+r.ID_RES+','done',this.checked);saveOperacional();renderAbiertosBody()"></td>'
+      +'</tr>';
+  }catch(e){
+    return '<tr><td colspan="12" style="color:red;padding:4px">Error fila '+r.ID_RES+': '+e.message+'</td></tr>';
+  }
 }
 
-// Subtotal row for a group
+
 function subtotalRow(label, records){
   const cP=records.reduce((a,r)=>a+r.saldo_cli,0);
   const cU=records.reduce((a,r)=>a+r.saldo_cli_usd,0);
