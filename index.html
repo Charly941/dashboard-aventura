@@ -837,6 +837,12 @@ function blockHeader(label, records, color){
 
 function renderAbiertosBody(){
   const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||window.innerWidth<=768;
+  console.log('renderAbiertosBody isMobile='+isMobile+' FUTUROS='+FUTUROS_OPEN.length+' VENCIDOS='+VENCIDOS_OPEN.length);
+  // Test first fileRow
+  if(FUTUROS_OPEN.length>0){
+    const testRow=fileRow(FUTUROS_OPEN[0]);
+    console.log('Test fileRow result length='+testRow.length+' starts='+testRow.slice(0,50));
+  }
   const now=new Date();
   const curMes=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const nextMes=`${now.getFullYear()}-${String(now.getMonth()+2).padStart(2,'0')}`;
