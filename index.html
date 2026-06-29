@@ -772,7 +772,7 @@ function fileRow(r){
   const scP=r.saldo_cli,scU=r.saldo_cli_usd,soP=r.saldo_op,soU=r.saldo_op_usd;
   const op=getOp(r.ID_RES)||{operador:'',obs:'',done:false};
   if(op.done===true) return '';
-  const isMob=window.innerWidth<=768;
+  const isMob=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||window.innerWidth<=768;
   const cobPag=(scU>0.01?'<span class="bdg br">COBRAR</span>':scU<-0.01?'<span class="bdg bgy">A FAVOR</span>':'–')+
               (soU>0.01?' <span class="bdg bo">PAGAR</span>':soU<-0.01?' <span class="bdg bgy">A FAVOR</span>':'');
   // Mobile: show text, no inputs
@@ -833,7 +833,7 @@ function blockHeader(label, records, color){
 }
 
 function renderAbiertosBody(){
-  const isMobile=window.innerWidth<=768;
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||window.innerWidth<=768;
   const now=new Date();
   const curMes=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const nextMes=`${now.getFullYear()}-${String(now.getMonth()+2).padStart(2,'0')}`;
