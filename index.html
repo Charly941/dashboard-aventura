@@ -1454,12 +1454,6 @@ function reloadDashboard(detail,filename){
 }
 
 // ── AUTO-UPLOAD TO GITHUB ────────────────────────────────
-function fetchWithTimeout(url,opts,ms=30000){
-  return Promise.race([
-    fetch(url,opts),
-    new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timeout')),ms))
-  ]);
-}
 async function uploadToGitHub(){
   const GH_TOKEN=getGHToken();
   if(!GH_TOKEN){alert('No se ingresó token. La sincronización se canceló.');return;}
@@ -1467,30 +1461,7 @@ async function uploadToGitHub(){
     showModal('Subiendo a GitHub...');
     await new Promise(r=>setTimeout(r,50));
 
-    // 1. Bajar el HTML actual de GitHub
-    const getRes=await fetchWithTimeout(
-      `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
-      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}},
-      20000);
-    if(!getRes.ok){
-      hideModal();
-      if(getRes.status===401){localStorage.removeItem('gh_token_aventura');alert('⚠️ Token inválido. Se eliminó. Cargá el Excel de nuevo para ingresar uno nuevo.');}
-      else{alert('⚠️ No se pudo conectar con GitHub ('+getRes.status+'). Datos actualizados solo localmente.');}
-      return;
-    }
-    const getData=await getRes.json();
-    const sha=getData.sha;
-
-    // 2. Decodificar el HTML de GitHub
-    let baseHtml;
-    try{
-      const raw=atob(getData.content.replace(/\n/g,''));
-      const bytes=new Uint8Array(raw.length);
-      for(let i=0;i<raw.length;i++) bytes[i]=raw.charCodeAt(i);
-      baseHtml=new TextDecoder('utf-8').decode(bytes);
-    }catch(decErr){hideModal();alert('⚠️ Error al decodificar el archivo de GitHub: '+decErr.message);return;}
-
-    // 3. Reemplazar el bloque de datos
+    // Construir bloque de datos
     const dataBlock=`// ── DATA ─────────────────────────────────────────────────
 const MONTHLY=${JSON.stringify(MONTHLY)};
 const COBROS=${JSON.stringify(COBROS)};
@@ -1501,39 +1472,45 @@ const VENCIDOS_OPEN=${JSON.stringify(VENCIDOS_OPEN)};
 const FUTUROS_OPEN=${JSON.stringify(FUTUROS_OPEN)};
 let TC=${JSON.stringify(TC)};
 `;
-    const dataStart=baseHtml.indexOf('// ── DATA');
-    const dataEnd=baseHtml.indexOf('// ── HELPERS');
-    if(dataStart===-1||dataEnd===-1){hideModal();alert('⚠️ No se encontró el bloque de datos en el archivo de GitHub.');return;}
-    const newHtml=baseHtml.slice(0,dataStart)+dataBlock+baseHtml.slice(dataEnd);
+    let fullHtml=document.documentElement.outerHTML;
+    fullHtml='<!DOCTYPE html>\n'+fullHtml;
+    const dataStart=fullHtml.indexOf('// ── DATA');
+    const dataEnd=fullHtml.indexOf('// ── HELPERS');
+    if(dataStart===-1||dataEnd===-1){hideModal();alert('⚠️ No se encontró el bloque de datos.');return;}
+    fullHtml=fullHtml.slice(0,dataStart)+dataBlock+fullHtml.slice(dataEnd);
 
-    // 4. Codificar y subir
-    let content;
-    try{
-      const bytes=new TextEncoder().encode(newHtml);
-      let bin='';
-      const chunk=8192;
-      for(let i=0;i<bytes.length;i+=chunk) bin+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-      content=btoa(bin);
-    }catch(encErr){hideModal();alert('⚠️ Error al codificar: '+encErr.message);return;}
+    // Codificar
+    const bytes=new TextEncoder().encode(fullHtml);
+    let bin='';
+    const chunk=8192;
+    for(let i=0;i<bytes.length;i+=chunk) bin+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+    const content=btoa(bin);
 
-    const putRes=await fetchWithTimeout(
-      `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
+    // Obtener SHA
+    const getRes=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
+      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    if(!getRes.ok){
+      hideModal();
+      if(getRes.status===401){localStorage.removeItem('gh_token_aventura');alert('⚠️ Token inválido. Se eliminó.');}
+      else{alert('⚠️ Error al conectar con GitHub ('+getRes.status+'). Datos actualizados solo localmente.');}
+      return;
+    }
+    const sha=(await getRes.json()).sha;
+
+    // Subir
+    const putRes=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
       {method:'PUT',
        headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-       body:JSON.stringify({message:'Auto-update desde dashboard',content,sha})},
-      60000);
+       body:JSON.stringify({message:'Auto-update desde dashboard',content,sha})});
     hideModal();
     if(putRes.ok){
       alert('✅ Subido a GitHub correctamente.\nEn 1-2 minutos estará disponible en todos los dispositivos.');
     }else{
       const err=await putRes.json().catch(()=>({}));
-      if(putRes.status===401){localStorage.removeItem('gh_token_aventura');alert('⚠️ Token inválido. Se eliminó. Cargá el Excel de nuevo para ingresar uno nuevo.');}
-      else{alert('⚠️ Error al subir a GitHub ('+putRes.status+'): '+(err.message||'desconocido'));}
+      if(putRes.status===401){localStorage.removeItem('gh_token_aventura');alert('⚠️ Token inválido. Se eliminó.');}
+      else{alert('⚠️ Error al subir ('+putRes.status+'): '+(err.message||'desconocido'));}
     }
-  }catch(e){
-    hideModal();
-    alert('⚠️ Error: '+e.message);
-  }
+  }catch(e){hideModal();alert('⚠️ Error: '+e.message);}
 }
 
 function loadExcel(input){
