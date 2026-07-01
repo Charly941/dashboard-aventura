@@ -1443,11 +1443,17 @@ function reloadDashboard(detail,filename){
 }
 
 // ── AUTO-UPLOAD TO GITHUB ────────────────────────────────
+function fetchWithTimeout(url,opts,ms=30000){
+  return Promise.race([
+    fetch(url,opts),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('Timeout: la conexión tardó demasiado')),ms))
+  ]);
+}
 async function uploadToGitHub(){
   const GH_TOKEN=getGHToken();
   if(!GH_TOKEN){alert('No se ingresó token. La sincronización se canceló.');return;}
   try{
-    showModal('Subiendo a GitHub para que se actualice en todos los dispositivos...');
+    showModal('Subiendo a GitHub...');
     // Build the new data block
     const dataBlock=`// ── DATA ─────────────────────────────────────────────────
 const MONTHLY=${JSON.stringify(MONTHLY)};
@@ -1479,21 +1485,35 @@ const GH_FILE='${GH_FILE}';
     fullHtml=fullHtml.slice(0,dataStart)+dataBlock+fullHtml.slice(dataEnd);
 
     // Get current file SHA
-    const getRes=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
-      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}});
-    if(!getRes.ok){hideModal();console.error('No se pudo obtener el SHA del archivo');return;}
+    const getRes=await fetchWithTimeout(
+      `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
+      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}},20000);
+    if(!getRes.ok){
+      hideModal();
+      if(getRes.status===401){localStorage.removeItem('gh_token_aventura');alert('⚠️ Token inválido. Se eliminó. Recargá el Excel para ingresar uno nuevo.');}
+      else{alert('⚠️ No se pudo conectar con GitHub ('+getRes.status+'). Datos actualizados localmente.');}
+      return;
+    }
     const getData=await getRes.json();
     const sha=getData.sha;
 
     // Upload new content
-    const content=btoa(unescape(encodeURIComponent(fullHtml)));
-    const putRes=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
+    let content;
+    try{
+      const bytes=new TextEncoder().encode(fullHtml);
+      let bin='';
+      bytes.forEach(b=>bin+=String.fromCharCode(b));
+      content=btoa(bin);
+    }catch(encErr){hideModal();alert('⚠️ Error al codificar: '+encErr.message);return;}
+    const putRes=await fetchWithTimeout(
+      `https://api.github.com/repos/${GH_REPO}/contents/${GH_FILE}`,
       {method:'PUT',
        headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-       body:JSON.stringify({message:'Auto-update desde dashboard',content,sha})});
+       body:JSON.stringify({message:'Auto-update desde dashboard',content,sha})},
+      60000);
     hideModal();
     if(putRes.ok){
-      alert('✅ Datos actualizados y subidos a GitHub.\nEn 1-2 minutos estará disponible en todos los dispositivos.');
+      alert('✅ Subido a GitHub correctamente.\nEn 1-2 minutos estará disponible en todos los dispositivos.');
     }else{
       const err=await putRes.json();
       console.error('Error subiendo a GitHub:',err);
