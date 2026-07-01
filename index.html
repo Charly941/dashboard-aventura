@@ -1513,7 +1513,10 @@ const GH_FILE='${GH_FILE}';
     try{
       const bytes=new TextEncoder().encode(fullHtml);
       let bin='';
-      bytes.forEach(b=>bin+=String.fromCharCode(b));
+      const chunk=8192;
+      for(let i=0;i<bytes.length;i+=chunk){
+        bin+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+      }
       content=btoa(bin);
     }catch(encErr){hideModal();alert('⚠️ Error al codificar: '+encErr.message);return;}
     const putRes=await fetchWithTimeout(
