@@ -2130,7 +2130,7 @@ function renderPag(id,total,cur,cb){
 // ── BOOT ─────────────────────────────────────────────────
 // Cargar TC guardados
 const tcSaved=localStorage.getItem('aventura_tc');
-if(tcSaved){try{const t=JSON.parse(tcSaved);Object.assign(TC,t);}catch(e){}}}
+if(tcSaved){try{const t=JSON.parse(tcSaved);Object.assign(TC,t);}catch(e){}}
 loadGastosData();
 loadRetirosData();
 loadVuelosData();
