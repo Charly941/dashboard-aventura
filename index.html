@@ -1845,10 +1845,33 @@ function initVuelos(){
   loadVuelosData();
   const huboLimpieza=limpiarVuelosVencidos();
   renderVuelos();
-  // Solo subir si hubo limpieza Y hay token guardado
+  // Solo subir si hubo limpieza Y hay token guardado — sin modal
   if(huboLimpieza&&localStorage.getItem('gh_token_aventura')){
-    uploadICS();
+    uploadICSsilent();
   }
+}
+
+async function uploadICSsilent(){
+  const ics=buildICS();
+  const GH_TOKEN=localStorage.getItem('gh_token_aventura');
+  if(!ics||!GH_TOKEN)return;
+  try{
+    const GH_ICS_FILE='vuelos.ics';
+    const getRes=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_ICS_FILE}`,
+      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    let sha='';
+    if(getRes.ok){const d=await getRes.json();sha=d.sha;}
+    const bytes=new TextEncoder().encode(ics);
+    let bin='';const chunk=8192;
+    for(let i=0;i<bytes.length;i+=chunk) bin+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+    const content=btoa(bin);
+    const body={message:'Auto-limpieza vuelos vencidos',content};
+    if(sha) body.sha=sha;
+    await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${GH_ICS_FILE}`,
+      {method:'PUT',
+       headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+       body:JSON.stringify(body)});
+  }catch(e){console.log('Auto-upload ICS:',e.message);}
 }
 
 // ── GENERAR PDF ──────────────────────────────────────────
