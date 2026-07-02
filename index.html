@@ -460,6 +460,7 @@ function setOp(id,field,val){
 
 // ── NAV ──────────────────────────────────────────────────
 function showPage(name,btn){
+  hideModal();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   $('page-'+name).classList.add('active'); btn.classList.add('active');
