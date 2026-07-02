@@ -2083,6 +2083,9 @@ const VENCIDOS_OPEN=${JSON.stringify(VENCIDOS_OPEN)};
 const FUTUROS_OPEN=${JSON.stringify(FUTUROS_OPEN)};
 let TC=${JSON.stringify(TC)};
 `;
+    // Ocultar modal antes de capturar el HTML para que no quede en el snapshot
+    const modalEl=document.getElementById('modal-loading');
+    if(modalEl) modalEl.classList.remove('show');
     let fullHtml=document.documentElement.outerHTML;
     fullHtml='<!DOCTYPE html>\n'+fullHtml;
     const dataStart=fullHtml.indexOf('// ── DATA');
@@ -2197,6 +2200,7 @@ loadVuelosData();
 initSelects();
 renderVentas();
 loadOperacional();
+hideModal(); // Asegurar que el modal no quede visible al cargar la página
 </script>
 
 <!-- SW removed -->
