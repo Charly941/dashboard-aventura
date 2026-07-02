@@ -1789,7 +1789,7 @@ async function uploadICS(){
   const ics=buildICS();
   if(!ics){alert('No hay vuelos cargados para generar el calendario.');return;}
   const GH_TOKEN=getGHToken();
-  if(!GH_TOKEN){alert('No se ingresó token. La sincronización se canceló.');return;}
+  if(!GH_TOKEN){hideModal();alert('No se ingresó token. La sincronización se canceló.');return;}
   try{
     showModal('Subiendo calendario a GitHub...');
     const GH_ICS_FILE='vuelos.ics';
@@ -1842,10 +1842,10 @@ function limpiarVuelosVencidos(){
 }
 
 function initVuelos(){
+  hideModal();
   loadVuelosData();
   const huboLimpieza=limpiarVuelosVencidos();
   renderVuelos();
-  // Solo subir si hubo limpieza Y hay token guardado — sin modal
   if(huboLimpieza&&localStorage.getItem('gh_token_aventura')){
     uploadICSsilent();
   }
