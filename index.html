@@ -1845,7 +1845,10 @@ function initVuelos(){
   loadVuelosData();
   const huboLimpieza=limpiarVuelosVencidos();
   renderVuelos();
-  if(huboLimpieza) uploadICS();
+  // Solo subir si hubo limpieza Y hay token guardado
+  if(huboLimpieza&&localStorage.getItem('gh_token_aventura')){
+    uploadICS();
+  }
 }
 
 // ── GENERAR PDF ──────────────────────────────────────────
