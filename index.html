@@ -2051,6 +2051,19 @@ function generarPDF(){
 }
 
 // ── AUTO-UPLOAD TO GITHUB ────────────────────────────────
+function getGHToken(){
+  let t=localStorage.getItem('gh_token_aventura');
+  if(!t){
+    t=prompt('🔑 Ingresá tu token de GitHub:\n(solo se pide una vez por dispositivo)');
+    if(t&&t.trim()){localStorage.setItem('gh_token_aventura',t.trim());t=t.trim();}
+    else t=null;
+  }
+  return t;
+}
+function clearGHToken(){localStorage.removeItem('gh_token_aventura');alert('Token eliminado.');}
+const GH_REPO='Charly941/dashboard-aventura';
+const GH_FILE='index.html';
+
 async function uploadToGitHub(){
   const GH_TOKEN=getGHToken();
   if(!GH_TOKEN){alert('No se ingresó token. La sincronización se canceló.');return;}
