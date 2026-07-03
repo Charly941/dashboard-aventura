@@ -1660,6 +1660,9 @@ async function loadVueloPDFs(input){
   if(!input.files.length)return;
   showModal('Procesando PDF(s)...');
   try{
+    // Asegurar que VUELOS_DATA está cargado desde GitHub antes de agregar nuevos
+    if(!VUELOS_DATA.length) await loadVuelosData();
+
     // Cargar PDF.js si no está
     if(!window.pdfjsLib){
       await new Promise((res,rej)=>{
