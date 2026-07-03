@@ -103,9 +103,12 @@ if('caches' in window){
 <body>
 
 <div class="topbar">
-  <div>
-    <h1>✈ Así comienza la aventura</h1>
-    <small id="top-status">Dashboard · USD · base: apertura</small>
+  <div style="display:flex;align-items:center;gap:10px">
+    <img src="icon-192.png" style="width:40px;height:40px;border-radius:8px;object-fit:contain;background:#fff;padding:2px;flex-shrink:0">
+    <div>
+      <h1>Así comienza la aventura</h1>
+      <small id="top-status">Dashboard · USD · base: apertura</small>
+    </div>
   </div>
   <label class="upload-btn">📂 Cargar Excel<input type="file" id="excel-input" accept=".xlsx,.xls" onchange="loadExcel(this)"></label>
 </div>
