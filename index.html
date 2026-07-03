@@ -1556,21 +1556,19 @@ function getAirlineName(code){
 
 // Parseo del texto del PDF
 function parsePDFText(text){
-  // Normalizar texto: reemplazar múltiples espacios por uno
   const norm=text.replace(/[ \t]+/g,' ');
   const lines=norm.split('\n').map(l=>l.trim()).filter(l=>l);
 
-  // Número de file — primer número de 4-5 dígitos en el texto
+  // Número de file — primer número de 4-5 dígitos
   let fileNum='?';
   const fileMatch=norm.match(/\b(\d{4,5})\b/);
   if(fileMatch) fileNum=fileMatch[1];
 
-  // Nombre del cliente — buscar después de "Reserva N°" o primer bloque ALL CAPS
+  // Nombre del cliente
   let cliente='?';
   const resMatch=norm.match(/Reserva\s+N[°o]\s*\n?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ ]{4,})/i);
   if(resMatch) cliente=resMatch[1].trim();
   else{
-    // Buscar primera línea en mayúsculas de más de 5 chars que no sea fecha ni código
     for(const l of lines){
       if(/^[A-ZÁÉÍÓÚÑ ]{6,}$/.test(l)&&!/^\d/.test(l)&&!l.includes('TEL')&&!l.includes('FAX')&&!l.includes('EMAIL')){
         cliente=l;break;
@@ -1578,7 +1576,7 @@ function parsePDFText(text){
     }
   }
 
-  // Nombres de pasajeros — formato "1.APELLIDO/NOMBRE"
+  // Pasajeros — formato "1.APELLIDO/NOMBRE"
   const paxNames=[];
   const paxPat=/\d+\.\s*([A-Z]+\/[A-Z ]+)/g;
   let pm;
@@ -1589,8 +1587,8 @@ function parsePDFText(text){
 
   const vuelos=[];
 
-  // Formato TST/GDS: "AR1324 V 01JUL 3 EZEPUJ HK4 0230"
-  // EZEPUJ puede aparecer junto o separado como "EZE PUJ"
+  // Formato TST/GDS Amadeus: "AR1324 V 01JUL 3 EZEPUJ HK4 0230"
+  // La fecha es ddMMM (ej: 01JUL, 26JUL)
   const tstPat=/\b([A-Z]{2}\d{3,4})\s+[A-Z]\s+(\d{2}[A-Z]{3})\s+\d\s+([A-Z]{3})\s*([A-Z]{3})\s+HK\d*\s+(\d{4})/g;
   let tm;
   while((tm=tstPat.exec(norm))!==null){
@@ -1600,7 +1598,8 @@ function parsePDFText(text){
     vuelos.push({numero:num,origen:ori,destino:dst,fecha,hora:dep.slice(0,2)+':'+dep.slice(2),aerolinea:num.slice(0,2),pnr:''});
   }
 
-  // Formato legible: "03/06 IB0108 EZE MAD 21:40"
+  // Formato legible manual: "26/07/26 CM836 ROS PTY 01:23" o "03/06 IB0108 EZE MAD 21:40"
+  // Acepta dd/mm/aa, dd/mm/aaaa, dd/mm
   if(vuelos.length===0){
     const readPat=/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+([A-Z]{2}\d{3,4})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{2}:\d{2})/g;
     let rm;
@@ -1612,26 +1611,31 @@ function parsePDFText(text){
     }
   }
 
-  // PNR — Formato A: último token de 6 chars alfanuméricos en línea con "RP/"
+  // PNR — múltiples formatos
   const pnrSegments=[];
+
+  // Formato Amadeus TST: "RP/BUEG123ZL/BUEG123ZL ... B6BKZW" — último token de 6 chars en línea RP/
   const rpPat=/RP\/\S+\s+\S+\s+\S+\s+([A-Z0-9]{6})(?:\s|$)/g;
   let rp;
   while((rp=rpPat.exec(norm))!==null){
     pnrSegments.push({pos:rp.index,pnr:rp[1]});
   }
-  // Formato B: "CODIGO AEROLINEA: XXXXX" o "CODIGO XXXXX"
-  const codPat=/CODIGO(?:\s+AEROLINEA)?[:\s]+([A-Z0-9]{5,7})(?=[\s\n]|$)/g;
+
+  // Formato manual: "LOCALIZADOR AMLBVI" o "CODIGO AEROLINEA: JLG95" o "CODIGO NUNNTM"
+  const codPat=/(?:LOCALIZADOR|CODIGO(?:\s+AEROLINEA)?)[:\s]+([A-Z0-9]{5,7})(?=[\s\n]|$)/g;
   let cp;
   while((cp=codPat.exec(norm))!==null){
     if(!/^\d+$/.test(cp[1]))
       pnrSegments.push({pos:cp.index,pnr:cp[1]});
   }
-  // Formato C: código de 6 chars alfanuméricos standalone cerca de "PNR" o "LOCALIZADOR"
-  const pnrWordPat=/(?:PNR|LOCALIZADOR|RESERVA)[:\s]+([A-Z0-9]{6})\b/g;
+
+  // PNR como palabra clave explícita
+  const pnrWordPat=/\bPNR[:\s]+([A-Z0-9]{6})\b/g;
   let pw;
   while((pw=pnrWordPat.exec(norm))!==null){
     pnrSegments.push({pos:pw.index,pnr:pw[1]});
   }
+
   pnrSegments.sort((a,b)=>a.pos-b.pos);
 
   // Asociar PNR a cada vuelo por proximidad en el texto
