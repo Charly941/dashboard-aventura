@@ -1620,7 +1620,8 @@ function parsePDFText(text){
       const [,dateStr,num,ori,dst,dep]=rm;
       const fecha=parseDateReadable(dateStr);
       if(!fecha)continue;
-      vuelos.push({numero:num,origen:ori,destino:dst,fecha,hora:dep,aerolinea:num.slice(0,2),pnr:''});
+      const horaFmt=dep.includes(':')?dep:dep.slice(0,2)+':'+dep.slice(2);
+      vuelos.push({numero:num,origen:ori,destino:dst,fecha,hora:horaFmt,aerolinea:num.slice(0,2),pnr:''});
     }
   }
 
@@ -1635,7 +1636,7 @@ function parsePDFText(text){
   }
 
   // Formato manual: "LOCALIZADOR AMLBVI" o "CODIGO AEROLINEA: JLG95" o "CODIGO NUNNTM"
-  const codPat=/(?:LOCALIZADOR|CODIGO(?:\s+AEROLINEA)?)[:\s]+([A-Z0-9]{5,7})(?=[\s\n]|$)/g;
+  const codPat=/(?:LOCALIZADOR|CODIGO(?:\s+(?:DE\s+)?AEROLINEA)?)[:\s]+([A-Z0-9]{5,7})(?=[\s\n]|$)/g;
   let cp;
   while((cp=codPat.exec(norm))!==null){
     if(!/^\d+$/.test(cp[1]))
