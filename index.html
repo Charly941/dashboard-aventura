@@ -1876,9 +1876,14 @@ function limpiarVuelosVencidos(){
 
 async function initVuelos(){
   hideModal();
+  // Mostrar "Cargando..." mientras baja el JSON de GitHub
+  const container=document.getElementById('vuelos-list');
+  const countEl=document.getElementById('vuelos-count');
+  if(container) container.innerHTML='<div style="text-align:center;color:var(--mut);padding:40px">⏳ Cargando vuelos...</div>';
+  if(countEl) countEl.textContent='Cargando...';
   await loadVuelosData();
   const huboLimpieza=limpiarVuelosVencidos();
-  await saveVuelosData();
+  if(huboLimpieza) await saveVuelosData();
   renderVuelos();
   if(huboLimpieza&&localStorage.getItem('gh_token_aventura')){
     uploadICSsilent();
