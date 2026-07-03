@@ -1614,7 +1614,7 @@ function parsePDFText(text){
   // Formato legible manual: "26/07/26 CM836 ROS PTY 01:23" o "03/06 IB0108 EZE MAD 21:40"
   // Acepta dd/mm/aa, dd/mm/aaaa, dd/mm
   if(vuelos.length===0){
-    const readPat=/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+([A-Z]{2}\d{3,4})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{2}:\d{2})/g;
+    const readPat=/(\d{2}\/\d{2}(?:\/\d{2,4})?)\s+([A-Z]{2}\d{3,4})\s+([A-Z]{3})\s+([A-Z]{3})\s+(\d{2}:?\d{2})/g;
     let rm;
     while((rm=readPat.exec(norm))!==null){
       const [,dateStr,num,ori,dst,dep]=rm;
