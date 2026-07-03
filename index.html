@@ -1717,10 +1717,12 @@ function renderVuelos(){
   const countEl=document.getElementById('vuelos-count');
   if(!container)return;
 
+  const hoyStr=new Date().toISOString().slice(0,10);
   const allVuelos=[];
   VUELOS_DATA.forEach(d=>{
     d.vuelos.forEach(v=>{
-      allVuelos.push({...v,fileNum:d.fileNum,cliente:d.cliente,paxNames:d.paxNames});
+      if(v.fecha>=hoyStr)
+        allVuelos.push({...v,fileNum:d.fileNum,cliente:d.cliente,paxNames:d.paxNames});
     });
   });
   allVuelos.sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.hora.localeCompare(b.hora));
