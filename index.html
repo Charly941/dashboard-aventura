@@ -1602,13 +1602,13 @@ function parsePDFText(text){
 
   // Formato TST/GDS Amadeus: "AR1324 V 01JUL 3 EZEPUJ HK4 0230"
   // La fecha es ddMMM (ej: 01JUL, 26JUL)
-  const tstPat=/\b([A-Z]{2}\d{3,4})\s+[A-Z]\s+(\d{2}[A-Z]{3})\s+\d\s+([A-Z]{3})\s*([A-Z]{3})\s+HK\d*\s+(\d{4})/g;
+  const tstPat=/\b([A-Z]{2}\s?\d{3,4})\s+[A-Z]\s+(\d{2}[A-Z]{3})\s+\d+\*?([A-Z]{3})\s*([A-Z]{3})\s+HK\d*\s+(\d{4})/g;
   let tm;
   while((tm=tstPat.exec(norm))!==null){
     const [,num,dateStr,ori,dst,dep]=tm;
     const fecha=parseDateTST(dateStr);
     if(!fecha)continue;
-    vuelos.push({numero:num,origen:ori,destino:dst,fecha,hora:dep.slice(0,2)+':'+dep.slice(2),aerolinea:num.slice(0,2),pnr:''});
+    vuelos.push({numero:num.replace(/\s/g,''),origen:ori,destino:dst,fecha,hora:dep.slice(0,2)+':'+dep.slice(2),aerolinea:num.slice(0,2),pnr:''});
   }
 
   // Formato legible manual: "26/07/26 CM836 ROS PTY 01:23" o "03/06 IB0108 EZE MAD 21:40"
