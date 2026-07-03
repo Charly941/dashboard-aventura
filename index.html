@@ -1477,10 +1477,19 @@ const VUELOS_KEY='aventura_vuelos';
 let VUELOS_DATA=[];
 
 async function loadVuelosData(){
-  // Primero intentar desde GitHub
+  // Intentar via GitHub API (compatible con CORS en iPhone)
   try{
-    const r=await fetch(`https://raw.githubusercontent.com/${GH_REPO}/main/vuelos.json?t=${Date.now()}`);
-    if(r.ok){VUELOS_DATA=await r.json();return;}
+    const r=await fetch(`https://api.github.com/repos/${GH_REPO}/contents/vuelos.json`,
+      {headers:{'Accept':'application/vnd.github.v3+json'}});
+    if(r.ok){
+      const d=await r.json();
+      const raw=atob(d.content.replace(/\n/g,''));
+      const bytes=new Uint8Array(raw.length);
+      for(let i=0;i<raw.length;i++) bytes[i]=raw.charCodeAt(i);
+      VUELOS_DATA=JSON.parse(new TextDecoder('utf-8').decode(bytes));
+      localStorage.setItem(VUELOS_KEY,JSON.stringify(VUELOS_DATA));
+      return;
+    }
   }catch(e){}
   // Fallback a localStorage
   try{const s=localStorage.getItem(VUELOS_KEY);if(s)VUELOS_DATA=JSON.parse(s);}catch(e){}
