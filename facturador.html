@@ -3595,7 +3595,7 @@ function checkSumaModal(){
     el.innerHTML = `<div class="ocr-note warn">⚠ Todavía no completaste el Total — no se puede validar la suma hasta que lo cargues.</div>`;
   } else if(totalNoCoincide(c)){
     const dif = suma - c.total;
-    el.innerHTML = `<div class="ocr-note warn">⚠ La suma de los conceptos (${suma.toLocaleString('es-AR',{minimumFractionDigits:2})}) no coincide con el Total (${c.total.toLocaleString('es-AR',{minimumFractionDigits:2})}). Diferencia: ${dif.toLocaleString('es-AR',{minimumFractionDigits:2})}. Revisá los montos antes de confirmar.</div>`;
+    el.innerHTML = `<div class="ocr-note warn">⚠ La suma de los conceptos (${suma.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}) no coincide con el Total (${c.total.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}). Diferencia: ${dif.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}. Revisá los montos antes de confirmar.</div>`;
   } else {
     el.innerHTML = `<div class="ocr-note ok">✓ La suma de los conceptos coincide con el Total.</div>`;
   }
@@ -4128,11 +4128,11 @@ function generarPDFFactura(datos){
       doc.text(f.desc, colX.desc, y, {maxWidth:66});
       doc.text('1,00', colX.cant, y, {align:'right'});
       doc.text('unidades', colX.um, y);
-      doc.text(f.neto.toLocaleString('es-AR',{minimumFractionDigits:2}), colX.precio, y, {align:'right'});
+      doc.text(f.neto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), colX.precio, y, {align:'right'});
       doc.text('0,00', colX.bonif, y, {align:'right'});
-      doc.text(f.neto.toLocaleString('es-AR',{minimumFractionDigits:2}), colX.sub, y, {align:'right'});
+      doc.text(f.neto.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), colX.sub, y, {align:'right'});
       doc.text(f.alicuota, colX.alic, y, {align:'right'});
-      doc.text((f.neto+f.iva).toLocaleString('es-AR',{minimumFractionDigits:2}), colX.subiva, y, {align:'right'});
+      doc.text((f.neto+f.iva).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), colX.subiva, y, {align:'right'});
       y += 6;
     });
   } else {
@@ -4155,10 +4155,10 @@ function generarPDFFactura(datos){
       doc.text(f.desc, colX.desc, y, {maxWidth:65});
       doc.text('1,00', colX.cant, y, {align:'right'});
       doc.text('unidades', colX.um, y);
-      doc.text(subtotal.toLocaleString('es-AR',{minimumFractionDigits:2}), colX.precio, y, {align:'right'});
+      doc.text(subtotal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), colX.precio, y, {align:'right'});
       doc.text('0,00', colX.bonifP, y, {align:'right'});
       doc.text('0,00', colX.bonifI, y, {align:'right'});
-      doc.text(subtotal.toLocaleString('es-AR',{minimumFractionDigits:2}), colX.sub, y, {align:'right'});
+      doc.text(subtotal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), colX.sub, y, {align:'right'});
       y += 6;
     });
   }
@@ -4175,24 +4175,24 @@ function generarPDFFactura(datos){
     doc.line(197-wMoneda,y+0.8,197,y+0.8);
     y+=6;
     doc.setFont('helvetica','bold');
-    doc.text('Importe Neto No Gravado: '+codMoneda+'  '+round2(r.noComp).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
-    if(r.exento>0){ doc.text('Importe Exento: '+codMoneda+'  '+round2(r.exento).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5; }
-    doc.text('Importe Neto Gravado: '+codMoneda+'  '+netoGravado.toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
+    doc.text('Importe Neto No Gravado: '+codMoneda+'  '+round2(r.noComp).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
+    if(r.exento>0){ doc.text('Importe Exento: '+codMoneda+'  '+round2(r.exento).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5; }
+    doc.text('Importe Neto Gravado: '+codMoneda+'  '+netoGravado.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
     doc.text('IVA 27%: '+codMoneda+'  0,00', 197, y, {align:'right'}); y+=5.5;
-    doc.text('IVA 21%: '+codMoneda+'  '+round2(r.iva21).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
-    doc.text('IVA 10,5%: '+codMoneda+'  '+round2(r.iva105).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
+    doc.text('IVA 21%: '+codMoneda+'  '+round2(r.iva21).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
+    doc.text('IVA 10,5%: '+codMoneda+'  '+round2(r.iva105).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
     doc.text('IVA 5%: '+codMoneda+'  0,00', 197, y, {align:'right'}); y+=5.5;
     doc.text('IVA 2,5%: '+codMoneda+'  0,00', 197, y, {align:'right'}); y+=5.5;
     doc.text('IVA 0%: '+codMoneda+'  0,00', 197, y, {align:'right'}); y+=5.5;
     doc.text('Importe Otros Tributos: '+codMoneda+'  0,00', 197, y, {align:'right'}); y+=5.5;
     doc.setFontSize(10.5);
-    doc.text('Importe Total: '+codMoneda+'  '+round2(r.total).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=6;
+    doc.text('Importe Total: '+codMoneda+'  '+round2(r.total).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=6;
   } else {
     doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text('Subtotal: '+codMoneda+'  '+round2(r.total).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
+    doc.text('Subtotal: '+codMoneda+'  '+round2(r.total).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=5.5;
     doc.text('Importe Otros Tributos: '+codMoneda+'  0,00', 197, y, {align:'right'}); y+=5.5;
     doc.setFontSize(10.5);
-    doc.text('Importe Total: '+codMoneda+'  '+round2(r.total).toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y, {align:'right'}); y+=6;
+    doc.text('Importe Total: '+codMoneda+'  '+round2(r.total).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y, {align:'right'}); y+=6;
   }
   if(m==='USD' && r.tc){
     doc.line(10,y-2,200,y-2);
@@ -4200,7 +4200,7 @@ function generarPDFFactura(datos){
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
     doc.text('El total de este comprobante expresado en moneda de curso legal - Pesos Argentinos - considerándose un tipo de', 13, y);
     doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.text('cambio consignado de '+r.tc+'.000000 asciende a: $  '+totalEnPesos.toLocaleString('es-AR',{minimumFractionDigits:2}), 197, y+4.5, {align:'right'});
+    doc.text('cambio consignado de '+r.tc+'.000000 asciende a: $  '+totalEnPesos.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 197, y+4.5, {align:'right'});
     y+=8;
   }
   doc.rect(10,yBoxTop-3,190,y-yBoxTop+3);
@@ -4212,7 +4212,7 @@ function generarPDFFactura(datos){
     doc.setFont('helvetica','bolditalic'); doc.setFontSize(8.5);
     doc.text('Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)', 13, y); y+=6;
     doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-    doc.text('IVA Contenido: '+codMoneda+'  '+ivaTotal.toLocaleString('es-AR',{minimumFractionDigits:2}), 20, y); y+=3;
+    doc.text('IVA Contenido: '+codMoneda+'  '+ivaTotal.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}), 20, y); y+=3;
     doc.rect(10,yRegBoxTop-4,190,y-yRegBoxTop+4);
   }
 
