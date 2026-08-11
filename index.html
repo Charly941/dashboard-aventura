@@ -2243,8 +2243,19 @@ const RETIROS_SYNC_TS=${getTs(RETIROS_KEY)||Date.now()};
     const ghData=await getRes.json();
     const sha=ghData.sha;
 
+    // El archivo ya pesa más de 1MB: la API de "contents" no devuelve el contenido en ese caso
+    // (content queda vacío). Usamos la API de "blobs", que sí soporta archivos grandes (hasta 100MB).
+    const blobRes=await fetch(`https://api.github.com/repos/${GH_REPO}/git/blobs/${sha}`,
+      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    if(!blobRes.ok){
+      hideModal();
+      alert('⚠️ Error al bajar el contenido del archivo desde GitHub (blob, '+blobRes.status+').');
+      return;
+    }
+    const blobData=await blobRes.json();
+
     // Decodificar HTML base de GitHub
-    const raw=atob(ghData.content.replace(/\n/g,''));
+    const raw=atob(blobData.content.replace(/\n/g,''));
     const rawBytes=new Uint8Array(raw.length);
     for(let i=0;i<raw.length;i++) rawBytes[i]=raw.charCodeAt(i);
     let baseHtml=new TextDecoder('utf-8').decode(rawBytes);
