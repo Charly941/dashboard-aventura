@@ -4347,6 +4347,13 @@ function guardarVentaFinal(datosForm, nroFacturaReal, cae, caeVencimiento){
   const { totalVenta, fechaVenta, tipoVenta, nombreVenta, cuitVenta, esNotaCredito, ncNro } = datosForm;
   const r = obtenerRParaVenta(totalVenta, esNotaCredito, ncNro, tipoVenta);
   if(!r){ toast('No encontré la factura que se quiere acreditar — revisá el número'); return; }
+  // Igual que en Compras: una Nota de Crédito se guarda EN NEGATIVO acá adentro, para que el
+  // Resumen mensual la reste correctamente (aunque a ARCA siempre se le mande todo en positivo,
+  // que es lo que ya hace el servidor — ahí el signo lo da el código de comprobante, no el número).
+  const rParaGuardar = esNotaCredito
+    ? { ...r, noComp: -r.noComp, exento: -r.exento, grav21: -r.grav21, grav105: -r.grav105,
+        iva21: -r.iva21, iva105: -r.iva105, total: -r.total, comisionBruta: -(r.comisionBruta||0) }
+    : r;
   VENTAS.push({
     id: nextId++, compraId: ventaTargetCompra.id,
     nroFactura: nroFacturaReal || '(pendiente)', tipoFactura: tipoVenta,
@@ -4354,7 +4361,7 @@ function guardarVentaFinal(datosForm, nroFacturaReal, cae, caeVencimiento){
     cliente: tipoVenta==='A' ? nombreVenta : (nombreVenta||'CONSUMIDOR FINAL'), cuit: tipoVenta==='A' ? cuitVenta : '',
     operador: ventaTargetCompra.operador,
     esNotaCredito, comprobanteAsociadoNro: esNotaCredito ? ncNro : null,
-    fecha: fechaVenta, ...r,
+    fecha: fechaVenta, ...rParaGuardar,
   });
   ventaTargetCompra.tieneVenta = true;
   closeModal('modalVenta');
@@ -4481,7 +4488,7 @@ function regenerarPDF(id){
     cliente: { nombre: v.cliente, cuit: v.cuit },
     esNotaCredito: v.esNotaCredito,
     comprobanteAsociado: v.esNotaCredito ? { ptoVta, nro: v.comprobanteAsociadoNro } : null,
-    r: { noComp: v.noComp, exento: v.exento, grav21: v.grav21, grav105: v.grav105, iva21: v.iva21, iva105: v.iva105, total: v.total, moneda: v.moneda, tc: v.tc },
+    r: { noComp: Math.abs(v.noComp), exento: Math.abs(v.exento), grav21: Math.abs(v.grav21), grav105: Math.abs(v.grav105), iva21: Math.abs(v.iva21), iva105: Math.abs(v.iva105), total: Math.abs(v.total), moneda: v.moneda, tc: v.tc },
     simulado: false,
   });
 }
