@@ -4347,6 +4347,16 @@ async function facturarEnArcaReal(){
     const nroReal = String(data.puntoVenta).padStart(4,'0')+'-'+String(data.numeroComprobante).padStart(8,'0');
     guardarVentaFinal(datosForm, nroReal, data.cae, data.caeVencimiento);
     toast('✅ Facturado en ARCA — N° '+nroReal+' — CAE '+data.cae);
+
+    // Generar y descargar el PDF real (sin marca de agua) apenas se factura de verdad
+    generarPDFFactura({
+      tipoFactura: datosForm.tipoVenta, ptoVta: cfg.ptoVta, nroComprobante: data.numeroComprobante,
+      fecha: datosForm.fechaVenta, cae: data.cae, caeVencimiento: data.caeVencimiento,
+      cliente: { nombre: datosForm.nombreVenta, cuit: datosForm.cuitVenta },
+      esNotaCredito: datosForm.esNotaCredito,
+      comprobanteAsociado: datosForm.esNotaCredito ? { ptoVta: cfg.ptoVta, nro: datosForm.ncNro } : null,
+      r, simulado: false,
+    });
   }catch(err){
     resDiv.innerHTML = `<div class="ocr-note warn">⚠ No se pudo conectar al servidor: ${err.message}</div>`;
   }
@@ -4376,12 +4386,34 @@ function renderVentas(){
       <td class="num">${fmt(v.iva21,v.moneda)}</td>
       <td class="num">${fmt(v.iva105,v.moneda)}</td>
       <td class="num"><b>${fmt(v.total,v.moneda)}</b></td>
+      <td><button class="btn ghost small" onclick="regenerarPDF(${v.id})">📄 PDF</button></td>
     </tr>
   `).join('');
   wrap.innerHTML = `<table><thead><tr>
     <th>Fecha</th><th>Cliente</th><th>CUIT</th><th>Operador</th><th>N° Factura</th><th>Tipo</th>
-    <th>No Comp.</th><th>Exento</th><th>Grav. 21%</th><th>Grav. 10,5%</th><th>IVA 21%</th><th>IVA 10,5%</th><th>Total</th>
+    <th>No Comp.</th><th>Exento</th><th>Grav. 21%</th><th>Grav. 10,5%</th><th>IVA 21%</th><th>IVA 10,5%</th><th>Total</th><th></th>
   </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// Genera (o vuelve a generar) el PDF de una venta ya guardada, usando el CAE real si lo tiene.
+function regenerarPDF(id){
+  const v = VENTAS.find(x=>x.id===id);
+  if(!v) return;
+  if(!v.nroFactura || v.nroFactura==='(pendiente)'){
+    toast('Esta venta todavía no tiene número real de ARCA (facturala primero con el botón rojo)');
+    return;
+  }
+  const [ptoVtaStr, nroStr] = v.nroFactura.split('-');
+  const ptoVta = parseInt(ptoVtaStr,10), nroComprobante = parseInt(nroStr,10);
+  generarPDFFactura({
+    tipoFactura: v.tipoFactura, ptoVta, nroComprobante,
+    fecha: v.fecha, cae: v.cae||'', caeVencimiento: v.caeVencimiento||'',
+    cliente: { nombre: v.cliente, cuit: v.cuit },
+    esNotaCredito: v.esNotaCredito,
+    comprobanteAsociado: v.esNotaCredito ? { ptoVta, nro: v.comprobanteAsociadoNro } : null,
+    r: { noComp: v.noComp, exento: v.exento, grav21: v.grav21, grav105: v.grav105, iva21: v.iva21, iva105: v.iva105, total: v.total, moneda: v.moneda, tc: v.tc },
+    simulado: false,
+  });
 }
 
 // ---------- RESUMEN ----------
