@@ -315,7 +315,11 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
       <div class="field-grid" id="ventaNCWrap" style="display:none; grid-column:1/-1; padding:0">
         <div><label>N° de la factura que se acredita</label><input type="text" id="ventaNCNroInput" placeholder="00000001" oninput="buscarFacturaParaNC()"></div>
         <div id="ventaNCPreview" class="hint" style="grid-column:1/-1; margin:2px 0 4px"></div>
-        <div class="hint" style="grid-column:1/-1; margin:0 0 4px">Tiene que ser una factura tuya del mismo tipo (A o B) y punto de venta que elegiste arriba.</div>
+        <div class="hint" style="grid-column:1/-1; margin:0 0 10px">Tiene que ser una factura tuya del mismo tipo (A o B) y punto de venta que elegiste arriba. Si esta Nota de Crédito es por el total completo, dejá estos campos en 0 y solo completá el monto de abajo — si es por una diferencia parcial, desglosala vos acá.</div>
+        <div><label>No Computable a acreditar</label><input type="text" id="ventaNCNoComp" value="0" oninput="recalcularTotalNC()"></div>
+        <div><label>Exento a acreditar</label><input type="text" id="ventaNCExento" value="0" oninput="recalcularTotalNC()"></div>
+        <div><label>Gravado 21% a acreditar</label><input type="text" id="ventaNCGrav21" value="0" oninput="recalcularTotalNC()"></div>
+        <div><label>Gravado 10,5% a acreditar</label><input type="text" id="ventaNCGrav105" value="0" oninput="recalcularTotalNC()"></div>
       </div>
       <div class="field-full">
         <label id="ventaTotalLabel">Monto total a facturar</label>
@@ -3813,6 +3817,10 @@ function openVentaModal(compraId){
   document.getElementById('ventaArcaResult').innerHTML='';
   document.getElementById('ventaEsNCInput').checked = false;
   document.getElementById('ventaNCNroInput').value = '';
+  document.getElementById('ventaNCNoComp').value = '0';
+  document.getElementById('ventaNCExento').value = '0';
+  document.getElementById('ventaNCGrav21').value = '0';
+  document.getElementById('ventaNCGrav105').value = '0';
   actualizarVisibilidadNC();
   document.getElementById('ventaTotalLabel').textContent =
     'Monto total a facturar (en ' + (c.moneda==='USD'?'dólares':'pesos') + ', misma moneda que la compra)';
@@ -3833,46 +3841,61 @@ function actualizarVisibilidadNC(){
   const esNC = document.getElementById('ventaEsNCInput').checked;
   document.getElementById('ventaNCWrap').style.display = esNC ? '' : 'none';
   document.getElementById('ventaTotalLabel').textContent = esNC
-    ? 'Monto total a acreditar (Nota de Crédito)'
+    ? 'Monto total a acreditar (calculado solo, según el desglose de abajo)'
     : 'Monto total a facturar';
   const totalInput = document.getElementById('ventaTotalInput');
+  totalInput.readOnly = esNC;
   if(!esNC){
-    totalInput.readOnly = false;
     document.getElementById('ventaNCPreview').innerHTML = '';
+  } else {
+    recalcularTotalNC();
   }
 }
 
-// Busca en el listado de Ventas la factura que se quiere acreditar, y si la encuentra,
-// trae sus montos EXACTOS (no se recalcula ninguna comisión nueva para una Nota de Crédito).
+// Recalcula en vivo el "Monto total" a partir de lo que se va completando en el desglose de la NC.
+function recalcularTotalNC(){
+  const noComp = parseNum(document.getElementById('ventaNCNoComp').value)||0;
+  const exento = parseNum(document.getElementById('ventaNCExento').value)||0;
+  const grav21 = parseNum(document.getElementById('ventaNCGrav21').value)||0;
+  const grav105 = parseNum(document.getElementById('ventaNCGrav105').value)||0;
+  const iva21 = round2(grav21*0.21);
+  const iva105 = round2(grav105*0.105);
+  const total = round2(noComp+exento+grav21+grav105+iva21+iva105);
+  document.getElementById('ventaTotalInput').value = total;
+}
+
+// Busca en el listado de Ventas la factura que se quiere acreditar, y muestra sus datos
+// como REFERENCIA (para que sepas de qué conceptos partir) — no fuerza ningún monto,
+// porque una Nota de Crédito puede ser por el total o por una diferencia parcial.
 function buscarFacturaParaNC(){
   const nroStr = document.getElementById('ventaNCNroInput').value.trim();
   const tipoVenta = document.getElementById('ventaTipoSel').value;
   const previewDiv = document.getElementById('ventaNCPreview');
-  const totalInput = document.getElementById('ventaTotalInput');
-  if(!nroStr){ previewDiv.innerHTML=''; totalInput.readOnly=false; return; }
+  if(!nroStr){ previewDiv.innerHTML=''; return; }
   const nroBuscado = nroStr.padStart(8,'0');
   const encontrada = VENTAS.find(v => v.tipoFactura===tipoVenta && v.nroFactura && v.nroFactura.endsWith('-'+nroBuscado));
   if(!encontrada){
     previewDiv.innerHTML = '<span style="color:#b23a3a">No encontré esa factura en tu listado de Ventas (revisá el número y que el Tipo de arriba coincida).</span>';
-    totalInput.readOnly = false;
     return;
   }
-  previewDiv.innerHTML = `✓ Encontrada: <b>${encontrada.cliente||'Consumidor Final'}</b> — Total ${fmt(encontrada.total, encontrada.moneda)}. Se va a acreditar ese mismo monto, con los mismos conceptos exactos (no se recalcula ninguna comisión nueva).`;
-  totalInput.value = encontrada.total;
-  totalInput.readOnly = true;
+  previewDiv.innerHTML = `✓ Encontrada: <b>${encontrada.cliente||'Consumidor Final'}</b> — Original: No Comp. ${fmt(encontrada.noComp,encontrada.moneda)}, Exento ${fmt(encontrada.exento,encontrada.moneda)}, Grav.21% ${fmt(encontrada.grav21,encontrada.moneda)}, Grav.10,5% ${fmt(encontrada.grav105,encontrada.moneda)}, Total ${fmt(encontrada.total,encontrada.moneda)}. Completá abajo cuánto de eso corresponde a esta Nota de Crédito.`;
 }
 
-// Para una venta normal, calcula la comisión como siempre. Para una Nota de Crédito,
-// en cambio, replica EXACTO los montos de la factura original (nunca recalcula nada nuevo).
+// Para una venta normal, calcula la comisión como siempre. Para una Nota de Crédito, en
+// cambio, arma los montos con el desglose manual que cargaste (puede ser el total completo
+// o solo una diferencia parcial) — nunca recalcula una comisión nueva.
 function obtenerRParaVenta(totalVenta, esNotaCredito, ncNro, tipoVenta){
   if(esNotaCredito){
-    const nroBuscado = (ncNro||'').trim().padStart(8,'0');
-    const encontrada = VENTAS.find(v => v.tipoFactura===tipoVenta && v.nroFactura && v.nroFactura.endsWith('-'+nroBuscado));
-    if(!encontrada) return null;
+    const noComp = parseNum(document.getElementById('ventaNCNoComp').value)||0;
+    const exento = parseNum(document.getElementById('ventaNCExento').value)||0;
+    const grav21 = parseNum(document.getElementById('ventaNCGrav21').value)||0;
+    const grav105 = parseNum(document.getElementById('ventaNCGrav105').value)||0;
+    const iva21 = round2(grav21*0.21);
+    const iva105 = round2(grav105*0.105);
+    const total = round2(noComp+exento+grav21+grav105+iva21+iva105);
     return {
-      noComp: encontrada.noComp, exento: encontrada.exento, grav21: encontrada.grav21, grav105: encontrada.grav105,
-      iva21: encontrada.iva21, iva105: encontrada.iva105, total: encontrada.total,
-      moneda: encontrada.moneda, tc: encontrada.tc, comisionBruta: encontrada.comisionBruta||0,
+      noComp, exento, grav21, grav105, iva21, iva105, total,
+      moneda: ventaTargetCompra.moneda, tc: ventaTargetCompra.tc||null, comisionBruta: round2(grav21+grav105+iva21+iva105),
     };
   }
   return calcVenta(totalVenta, ventaTargetCompra);
