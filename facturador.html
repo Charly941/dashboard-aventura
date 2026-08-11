@@ -313,7 +313,8 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
         </label>
       </div>
       <div class="field-grid" id="ventaNCWrap" style="display:none; grid-column:1/-1; padding:0">
-        <div><label>N° de la factura que se acredita</label><input type="text" id="ventaNCNroInput" placeholder="00000001"></div>
+        <div><label>N° de la factura que se acredita</label><input type="text" id="ventaNCNroInput" placeholder="00000001" oninput="buscarFacturaParaNC()"></div>
+        <div id="ventaNCPreview" class="hint" style="grid-column:1/-1; margin:2px 0 4px"></div>
         <div class="hint" style="grid-column:1/-1; margin:0 0 4px">Tiene que ser una factura tuya del mismo tipo (A o B) y punto de venta que elegiste arriba.</div>
       </div>
       <div class="field-full">
@@ -3834,6 +3835,47 @@ function actualizarVisibilidadNC(){
   document.getElementById('ventaTotalLabel').textContent = esNC
     ? 'Monto total a acreditar (Nota de Crédito)'
     : 'Monto total a facturar';
+  const totalInput = document.getElementById('ventaTotalInput');
+  if(!esNC){
+    totalInput.readOnly = false;
+    document.getElementById('ventaNCPreview').innerHTML = '';
+  }
+}
+
+// Busca en el listado de Ventas la factura que se quiere acreditar, y si la encuentra,
+// trae sus montos EXACTOS (no se recalcula ninguna comisión nueva para una Nota de Crédito).
+function buscarFacturaParaNC(){
+  const nroStr = document.getElementById('ventaNCNroInput').value.trim();
+  const tipoVenta = document.getElementById('ventaTipoSel').value;
+  const previewDiv = document.getElementById('ventaNCPreview');
+  const totalInput = document.getElementById('ventaTotalInput');
+  if(!nroStr){ previewDiv.innerHTML=''; totalInput.readOnly=false; return; }
+  const nroBuscado = nroStr.padStart(8,'0');
+  const encontrada = VENTAS.find(v => v.tipoFactura===tipoVenta && v.nroFactura && v.nroFactura.endsWith('-'+nroBuscado));
+  if(!encontrada){
+    previewDiv.innerHTML = '<span style="color:#b23a3a">No encontré esa factura en tu listado de Ventas (revisá el número y que el Tipo de arriba coincida).</span>';
+    totalInput.readOnly = false;
+    return;
+  }
+  previewDiv.innerHTML = `✓ Encontrada: <b>${encontrada.cliente||'Consumidor Final'}</b> — Total ${fmt(encontrada.total, encontrada.moneda)}. Se va a acreditar ese mismo monto, con los mismos conceptos exactos (no se recalcula ninguna comisión nueva).`;
+  totalInput.value = encontrada.total;
+  totalInput.readOnly = true;
+}
+
+// Para una venta normal, calcula la comisión como siempre. Para una Nota de Crédito,
+// en cambio, replica EXACTO los montos de la factura original (nunca recalcula nada nuevo).
+function obtenerRParaVenta(totalVenta, esNotaCredito, ncNro, tipoVenta){
+  if(esNotaCredito){
+    const nroBuscado = (ncNro||'').trim().padStart(8,'0');
+    const encontrada = VENTAS.find(v => v.tipoFactura===tipoVenta && v.nroFactura && v.nroFactura.endsWith('-'+nroBuscado));
+    if(!encontrada) return null;
+    return {
+      noComp: encontrada.noComp, exento: encontrada.exento, grav21: encontrada.grav21, grav105: encontrada.grav105,
+      iva21: encontrada.iva21, iva105: encontrada.iva105, total: encontrada.total,
+      moneda: encontrada.moneda, tc: encontrada.tc, comisionBruta: encontrada.comisionBruta||0,
+    };
+  }
+  return calcVenta(totalVenta, ventaTargetCompra);
 }
 
 function calcVenta(totalVenta, compra){
@@ -3907,7 +3949,6 @@ async function simularEnArca(){
     if(!cfg) return;
   }
 
-  const r = calcVenta(totalVenta, ventaTargetCompra);
   const tipoFactura = document.getElementById('ventaTipoSel').value;
   const docNro = document.getElementById('ventaCuitInput').value;
   const fecha = document.getElementById('ventaFechaInput').value;
@@ -3915,6 +3956,9 @@ async function simularEnArca(){
   const ncNro = document.getElementById('ventaNCNroInput').value;
 
   if(esNotaCredito && !ncNro){ toast('Ingresá el número de la factura que se acredita'); return; }
+
+  const r = obtenerRParaVenta(totalVenta, esNotaCredito, ncNro, tipoFactura);
+  if(!r){ toast('No encontré la factura que se quiere acreditar — revisá el número'); return; }
 
   const resDiv = document.getElementById('ventaArcaResult');
   resDiv.innerHTML = '<div class="ocr-note">Consultando a ARCA…</div>';
@@ -4278,7 +4322,8 @@ function leerDatosVentaForm(){
 // de verdad (o quedan "(pendiente)" si todavía no se conectó a ARCA para esa venta).
 function guardarVentaFinal(datosForm, nroFacturaReal, cae, caeVencimiento){
   const { totalVenta, fechaVenta, tipoVenta, nombreVenta, cuitVenta, esNotaCredito, ncNro } = datosForm;
-  const r = calcVenta(totalVenta, ventaTargetCompra);
+  const r = obtenerRParaVenta(totalVenta, esNotaCredito, ncNro, tipoVenta);
+  if(!r){ toast('No encontré la factura que se quiere acreditar — revisá el número'); return; }
   VENTAS.push({
     id: nextId++, compraId: ventaTargetCompra.id,
     nroFactura: nroFacturaReal || '(pendiente)', tipoFactura: tipoVenta,
@@ -4308,6 +4353,9 @@ async function facturarEnArcaReal(){
   const datosForm = leerDatosVentaForm();
   if(!datosForm) return;
 
+  const r = obtenerRParaVenta(datosForm.totalVenta, datosForm.esNotaCredito, datosForm.ncNro, datosForm.tipoVenta);
+  if(!r){ toast('No encontré la factura que se quiere acreditar — revisá el número'); return; }
+
   let cfg = configArca();
   if(!cfg.servidor || !cfg.clave || !cfg.ptoVta){
     cfg = pedirConfigArca();
@@ -4316,12 +4364,11 @@ async function facturarEnArcaReal(){
 
   const confirmado = confirm(
     '⚠️ Esto va a emitir una factura REAL en ARCA, con CAE válido — no se puede deshacer '+
-    '(salvo con una Nota de Crédito después).\n\nTotal: '+fmt(datosForm.totalVenta, ventaTargetCompra.moneda)+
+    '(salvo con una Nota de Crédito después).\n\nTotal: '+fmt(r.total, r.moneda)+
     '\n\n¿Confirmás que querés facturar de verdad?'
   );
   if(!confirmado) return;
 
-  const r = calcVenta(datosForm.totalVenta, ventaTargetCompra);
   const resDiv = document.getElementById('ventaArcaResult');
   resDiv.innerHTML = '<div class="ocr-note">Facturando en ARCA…</div>';
 
