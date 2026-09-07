@@ -3786,11 +3786,15 @@ function renderCompras(){
         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap">
           <button class="btn ghost small" onclick="openEditCompraModal(${c.id})">Editar</button>
           ${c.esGasto ? '<span class="tag-pill tag-gasto">Gasto oficina</span>' : (() => {
-            const cantidadVentas = VENTAS.filter(v=>v.compraId===c.id).length;
+            const ventasDeEstaCompra = VENTAS.filter(v=>v.compraId===c.id);
+            const cantidadVentas = ventasDeEstaCompra.length;
+            const sumaFacturada = ventasDeEstaCompra.reduce((a,v)=>a+(v.total||0),0);
+            const faltaFacturar = cantidadVentas===0 || sumaFacturada < (c.total||0) - 0.01;
             const etiqueta = cantidadVentas>0
               ? '<span class="tag-pill tag-ok">Facturada'+(cantidadVentas>1?' x'+cantidadVentas:'')+'</span>'
               : (c.facturado ? '<span class="tag-pill tag-ok">Facturada (manual)</span>' : '');
-            return etiqueta + '<button class="btn small moss" onclick="openVentaModal('+c.id+')">'+(cantidadVentas>0?'Facturar otra':'Facturar')+'</button>';
+            const boton = faltaFacturar ? '<button class="btn small moss" onclick="openVentaModal('+c.id+')">'+(cantidadVentas>0?'Facturar otra':'Facturar')+'</button>' : '';
+            return etiqueta + boton;
           })()}
         </div>
       </td>
