@@ -321,6 +321,11 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
         <div><label>Gravado 21% a acreditar</label><input type="text" id="ventaNCGrav21" value="0" oninput="recalcularTotalNC()"></div>
         <div><label>Gravado 10,5% a acreditar</label><input type="text" id="ventaNCGrav105" value="0" oninput="recalcularTotalNC()"></div>
       </div>
+      <div class="field-grid" style="grid-column:1/-1; padding:0">
+        <div><label>No Computable a facturar</label><input type="text" id="ventaNoCompInput" oninput="updateVentaPreview()"></div>
+        <div><label>Exento a facturar</label><input type="text" id="ventaExentoInput" oninput="updateVentaPreview()"></div>
+        <div class="hint" style="grid-column:1/-1; margin:0 0 6px">Arrancan con el total de la compra. Si esta compra se factura a varios pasajeros por separado, bajalos a mano para repartir entre las distintas ventas — la suma entre todas debería dar el total de la compra.</div>
+      </div>
       <div class="field-full">
         <label id="ventaTotalLabel">Monto total a facturar</label>
         <input type="text" id="ventaTotalInput" placeholder="0.00">
@@ -3778,11 +3783,15 @@ function renderCompras(){
         <input type="checkbox" ${c.esGasto?'checked':''} title="Gasto de oficina: no se factura a un cliente" onchange="toggleEsGasto(${c.id}, this.checked)">
       </td>
       <td>
-        <div style="display:flex; gap:6px; align-items:center">
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap">
           <button class="btn ghost small" onclick="openEditCompraModal(${c.id})">Editar</button>
-          ${c.esGasto ? '<span class="tag-pill tag-gasto">Gasto oficina</span>' :
-            (c.tieneVenta||c.facturado) ? '<span class="tag-pill tag-ok">Facturada'+(c.facturado&&!c.tieneVenta?' (manual)':'')+'</span>' :
-            '<button class="btn small moss" onclick="openVentaModal('+c.id+')">Facturar</button>'}
+          ${c.esGasto ? '<span class="tag-pill tag-gasto">Gasto oficina</span>' : (() => {
+            const cantidadVentas = VENTAS.filter(v=>v.compraId===c.id).length;
+            const etiqueta = cantidadVentas>0
+              ? '<span class="tag-pill tag-ok">Facturada'+(cantidadVentas>1?' x'+cantidadVentas:'')+'</span>'
+              : (c.facturado ? '<span class="tag-pill tag-ok">Facturada (manual)</span>' : '');
+            return etiqueta + '<button class="btn small moss" onclick="openVentaModal('+c.id+')">'+(cantidadVentas>0?'Facturar otra':'Facturar')+'</button>';
+          })()}
         </div>
       </td>
     </tr>
@@ -3812,6 +3821,8 @@ function openVentaModal(compraId){
   document.getElementById('ventaTipoSel').value = c.tipoFactura==='A' ? 'A' : 'B';
   document.getElementById('ventaNombreInput').value = c.cliente || '';
   document.getElementById('ventaCuitInput').value = '';
+  document.getElementById('ventaNoCompInput').value = c.noComp || 0;
+  document.getElementById('ventaExentoInput').value = c.exento || 0;
   document.getElementById('ventaTotalInput').value='';
   document.getElementById('ventaPreviewCalc').innerHTML='';
   document.getElementById('ventaArcaResult').innerHTML='';
@@ -3906,7 +3917,11 @@ function obtenerRParaVenta(totalVenta, esNotaCredito, ncNro, tipoVenta){
 
 function calcVenta(totalVenta, compra){
   // La venta siempre se factura en la misma moneda que la compra: se pasa directo, sin conversión.
-  const noComp = compra.noComp, exento = compra.exento;
+  // No Computable y Exento se toman de los campos editables del modal (por defecto, el total de
+  // la compra — pero si esta compra se reparte entre varios pasajeros, cada venta puede llevar
+  // solo una porción, cargada a mano).
+  const noComp = parseNum(document.getElementById('ventaNoCompInput').value);
+  const exento = parseNum(document.getElementById('ventaExentoInput').value);
   const compraGrav21 = compra.grav21, compraGrav105 = compra.grav105;
   const comisionBruta = totalVenta - noComp - exento; // incluye IVA, en la moneda de la compra/venta
   const gravCompraTotal = compraGrav21 + compraGrav105;
@@ -3934,8 +3949,8 @@ function updateVentaPreview(){
   const m = r.moneda;
   document.getElementById('ventaPreviewCalc').innerHTML = `
     <div class="section-title">Cálculo (en ${m==='USD'?'dólares':'pesos'})</div>
-    <div class="card-line"><span>No Computable (= compra)</span><b>${fmt(r.noComp,m)}</b></div>
-    <div class="card-line"><span>Exento (= compra)</span><b>${fmt(r.exento,m)}</b></div>
+    <div class="card-line"><span>No Computable</span><b>${fmt(r.noComp,m)}</b></div>
+    <div class="card-line"><span>Exento</span><b>${fmt(r.exento,m)}</b></div>
     <div class="card-line"><span>Tu comisión bruta (con IVA)</span><b>${fmt(r.comisionBruta,m)}</b></div>
     <div class="card-line"><span>Gravado 21% (neto)</span><b>${fmt(r.grav21,m)}</b></div>
     <div class="card-line"><span>IVA 21%</span><b>${fmt(r.iva21,m)}</b></div>
