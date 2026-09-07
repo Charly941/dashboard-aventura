@@ -3794,7 +3794,8 @@ function renderCompras(){
               ? '<span class="tag-pill tag-ok">Facturada'+(cantidadVentas>1?' x'+cantidadVentas:'')+'</span>'
               : (c.facturado ? '<span class="tag-pill tag-ok">Facturada (manual)</span>' : '');
             const boton = faltaFacturar ? '<button class="btn small moss" onclick="openVentaModal('+c.id+')">'+(cantidadVentas>0?'Facturar otra':'Facturar')+'</button>' : '';
-            return etiqueta + boton;
+            const linkCorregir = (cantidadVentas>0 && !faltaFacturar) ? '<button class="btn ghost small" onclick="openVentaModal('+c.id+')" title="Para corregir una factura ya hecha, usá Nota de Crédito acá adentro">¿Corregir algo?</button>' : '';
+            return etiqueta + boton + linkCorregir;
           })()}
         </div>
       </td>
