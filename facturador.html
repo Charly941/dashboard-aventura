@@ -302,8 +302,8 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
         <label>Nombre del cliente</label>
         <input type="text" id="ventaNombreInput" placeholder="Nombre y apellido">
       </div>
-      <div class="field-full" id="ventaCuitWrap" style="display:none">
-        <label>CUIT del cliente</label>
+      <div class="field-full" id="ventaCuitWrap">
+        <label id="ventaCuitLabel">CUIT del cliente</label>
         <input type="text" id="ventaCuitInput" placeholder="20-12345678-9">
       </div>
       <div class="field-full" style="border-top:1px dashed var(--line); padding-top:10px; margin-top:4px">
@@ -3833,7 +3833,10 @@ function openVentaModal(compraId){
 // Factura B = Consumidor Final (nombre opcional, sin CUIT). Factura A = necesita nombre y CUIT.
 function actualizarVisibilidadCuit(){
   const esA = document.getElementById('ventaTipoSel').value==='A';
-  document.getElementById('ventaCuitWrap').style.display = esA ? '' : 'none';
+  document.getElementById('ventaCuitLabel').textContent = esA
+    ? 'CUIT del cliente (obligatorio)'
+    : 'DNI del cliente (opcional — solo obligatorio si la factura supera $10.000.000)';
+  document.getElementById('ventaCuitInput').placeholder = esA ? '20-12345678-9' : '26346519';
   document.querySelector('#ventaNombreWrap label').textContent = esA ? 'Nombre del cliente (obligatorio)' : 'Nombre del cliente (opcional, Consumidor Final)';
 }
 
@@ -4358,7 +4361,7 @@ function guardarVentaFinal(datosForm, nroFacturaReal, cae, caeVencimiento){
     id: nextId++, compraId: ventaTargetCompra.id,
     nroFactura: nroFacturaReal || '(pendiente)', tipoFactura: tipoVenta,
     cae: cae || null, caeVencimiento: caeVencimiento || null,
-    cliente: tipoVenta==='A' ? nombreVenta : (nombreVenta||'CONSUMIDOR FINAL'), cuit: tipoVenta==='A' ? cuitVenta : '',
+    cliente: tipoVenta==='A' ? nombreVenta : (nombreVenta||'CONSUMIDOR FINAL'), cuit: cuitVenta||'',
     operador: ventaTargetCompra.operador,
     esNotaCredito, comprobanteAsociadoNro: esNotaCredito ? ncNro : null,
     fecha: fechaVenta, ...rParaGuardar,
