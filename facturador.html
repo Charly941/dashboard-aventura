@@ -257,6 +257,7 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
         <button class="btn moss" onclick="exportarExcel()">📊 Exportar Excel</button>
         <button class="btn ghost" onclick="exportarPDF()">🖨️ Imprimir / Generar PDF</button>
         <button class="btn ghost" onclick="pedirConfigArca()">⚙️ Configurar conexión a ARCA</button>
+        <button class="btn ghost" onclick="uploadToGitHub(false)" title="Sube lo cargado en esta computadora, para que la otra lo vea">🔄 Sincronizar ahora</button>
       </div>
       <div class="resumen-grid" id="resumenGrid"></div>
     </div>
@@ -3125,6 +3126,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 const __pdfWorkerBlob = new Blob([__PDFJS_WORKER_CODE__], {type:'text/javascript'});
 pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__pdfWorkerBlob);
 
+// ==DATA-BLOCK-START==
+const FACTURADOR_SYNC={"COMPRAS":[],"VENTAS":[],"nextId":1,"iibbRate":8};
+const FACTURADOR_SYNC_TS=0;
+// ==DATA-BLOCK-END==
+
 // ---------- STATE ----------
 let COMPRAS = [];   // {id, fecha, nroFactura, operador, cliente, noComp, exento, grav21, grav10_5, iva21, iva10_5, total, moneda, tc, esGasto, tieneVenta}
 let VENTAS = [];    // {id, compraId, fecha, cliente, noComp, exento, grav21, grav10_5, iva21, iva10_5, total, moneda}
@@ -3145,21 +3151,122 @@ function borrarTodo(){
   toast('Todo borrado. Arrancás de cero.');
 }
 
+// Sello de tiempo por clave: se guarda como '<clave>_ts' en localStorage (mismo patrón que el dashboard).
+function getTs(key){
+  try{ return parseInt(localStorage.getItem(key+'_ts'),10)||0; }catch(e){ return 0; }
+}
+function setTs(key,ts){
+  try{ localStorage.setItem(key+'_ts', String(ts)); }catch(e){}
+}
+
 function guardarEstado(){
   try{
     localStorage.setItem(LS_KEY, JSON.stringify({COMPRAS, VENTAS, nextId, iibbRate}));
+    setTs(LS_KEY, Date.now());
+    scheduleGitHubSync();
   }catch(e){ console.error('No se pudo guardar en localStorage:', e); }
 }
 function cargarEstado(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(!raw) return;
-    const d = JSON.parse(raw);
+    const localTs = getTs(LS_KEY);
+    const syncHasData = typeof FACTURADOR_SYNC!=='undefined' && ((FACTURADOR_SYNC.COMPRAS||[]).length || (FACTURADOR_SYNC.VENTAS||[]).length);
+    const syncTs = (typeof FACTURADOR_SYNC_TS!=='undefined') ? FACTURADOR_SYNC_TS : 0;
+    let d;
+    if(raw && (!syncHasData || localTs>=syncTs)){
+      d = JSON.parse(raw);
+    } else if(syncHasData){
+      d = FACTURADOR_SYNC;
+      localStorage.setItem(LS_KEY, JSON.stringify(d));
+      setTs(LS_KEY, syncTs||Date.now());
+    } else if(raw){
+      d = JSON.parse(raw);
+    } else {
+      return;
+    }
     COMPRAS = d.COMPRAS || [];
     VENTAS = d.VENTAS || [];
     nextId = d.nextId || (Math.max(0, ...COMPRAS.map(c=>c.id||0), ...VENTAS.map(v=>v.id||0)) + 1);
     if(d.iibbRate!=null) iibbRate = d.iibbRate;
   }catch(e){ console.error('No se pudo leer localStorage:', e); }
+}
+
+// ---------- SINCRONIZACIÓN CON GITHUB (entre PC de oficina y notebook) ----------
+function getGHToken(){
+  let t = localStorage.getItem('gh_token_aventura');
+  if(!t){
+    t = prompt('🔑 Ingresá tu token de GitHub (el mismo que usás en el dashboard):\n(solo se pide una vez por dispositivo)');
+    if(t && t.trim()){ localStorage.setItem('gh_token_aventura', t.trim()); t = t.trim(); }
+    else t = null;
+  }
+  return t;
+}
+const GH_REPO_FACT = 'Charly941/dashboard-aventura';
+const GH_FILE_FACT = 'facturador.html';
+
+let _syncTimerFact = null;
+function scheduleGitHubSync(){
+  const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth<=768;
+  if(isMobileDevice) return; // igual que el dashboard: la sincronización automática es solo desde PC
+  clearTimeout(_syncTimerFact);
+  _syncTimerFact = setTimeout(()=>{ uploadToGitHub(false); }, 3000);
+}
+
+// silencioso=true (uso normal, automático, sin molestar) / false (botón manual, avisa resultado)
+async function uploadToGitHub(silencioso){
+  const GH_TOKEN = getGHToken();
+  if(!GH_TOKEN){ if(!silencioso) toast('No se ingresó token — sincronización cancelada'); return; }
+  if(!silencioso) toast('Sincronizando con GitHub…');
+  try{
+    const dataBlock = `// ==DATA-BLOCK-START==
+const FACTURADOR_SYNC=${JSON.stringify({COMPRAS,VENTAS,nextId,iibbRate})};
+const FACTURADOR_SYNC_TS=${getTs(LS_KEY)||Date.now()};
+// ==DATA-BLOCK-END==`;
+
+    const getRes = await fetch(`https://api.github.com/repos/${GH_REPO_FACT}/contents/${GH_FILE_FACT}`,
+      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    if(!getRes.ok){
+      if(getRes.status===401){ localStorage.removeItem('gh_token_aventura'); toast('⚠️ Token inválido, se eliminó'); }
+      else if(!silencioso){ toast('⚠️ Error al conectar con GitHub ('+getRes.status+')'); }
+      return;
+    }
+    const sha = (await getRes.json()).sha;
+
+    // El archivo pesa más de 1MB: la API de "contents" no devuelve el contenido en ese caso.
+    // Usamos la API de "blobs", que sí soporta archivos grandes.
+    const blobRes = await fetch(`https://api.github.com/repos/${GH_REPO_FACT}/git/blobs/${sha}`,
+      {headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json'}});
+    if(!blobRes.ok){ if(!silencioso) toast('⚠️ Error al bajar el archivo de GitHub'); return; }
+    const blobData = await blobRes.json();
+
+    const raw = atob(blobData.content.replace(/\n/g,''));
+    const rawBytes = new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++) rawBytes[i]=raw.charCodeAt(i);
+    let baseHtml = new TextDecoder('utf-8').decode(rawBytes);
+
+    const dataStart = baseHtml.indexOf('// ==DATA-BLOCK-START==');
+    const dataEnd = baseHtml.indexOf('// ==DATA-BLOCK-END==');
+    if(dataStart===-1 || dataEnd===-1){ toast('⚠️ No se encontró el bloque de datos en GitHub'); return; }
+    const finDelMarcador = dataEnd + '// ==DATA-BLOCK-END=='.length;
+    const newHtml = baseHtml.slice(0,dataStart) + dataBlock + baseHtml.slice(finDelMarcador);
+
+    const bytes = new TextEncoder().encode(newHtml);
+    let bin = ''; const chunk = 8192;
+    for(let i=0;i<bytes.length;i+=chunk) bin += String.fromCharCode(...bytes.subarray(i,i+chunk));
+    const content = btoa(bin);
+
+    const putRes = await fetch(`https://api.github.com/repos/${GH_REPO_FACT}/contents/${GH_FILE_FACT}`,
+      {method:'PUT',
+       headers:{'Authorization':'token '+GH_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+       body:JSON.stringify({message:'Auto-sync facturador desde '+new Date().toLocaleString('es-AR'), content, sha})});
+    if(putRes.ok){
+      if(!silencioso) toast('✅ Sincronizado con GitHub');
+    } else {
+      const err = await putRes.json().catch(()=>({}));
+      if(putRes.status===401){ localStorage.removeItem('gh_token_aventura'); toast('⚠️ Token inválido, se eliminó'); }
+      else toast('⚠️ Error al subir ('+putRes.status+'): '+(err.message||'desconocido'));
+    }
+  }catch(e){ if(!silencioso) toast('⚠️ Error de sincronización: '+e.message); }
 }
 
 // ---------- PERIODO (mes de liquidación) ----------
