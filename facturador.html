@@ -4669,6 +4669,9 @@ function renderComparativa(){
   // Guardamos, por moneda, los acumulados — así se puede totalizar bien aunque el período
   // tenga compras en USD y en ARS mezcladas (nunca se suman entre sí).
   const totalesPorMoneda = {};
+  // Y en paralelo, todo convertido a pesos (con el mismo TC que ya tiene cada compra), para
+  // tener una sola visión consolidada sin importar en qué moneda se facturó cada una.
+  let totalInformativoARS=0, totalFacturadoARS=0, totalDiferenciaARS=0, totalIvaARS=0;
   const rows = comprasConInformativo.map(c=>{
     const ventasDeEstaCompra = VENTAS.filter(v=>v.compraId===c.id);
     const facturado = ventasDeEstaCompra.reduce((a,v)=>a+(v.total||0),0);
@@ -4680,6 +4683,10 @@ function renderComparativa(){
     totalesPorMoneda[m].facturado += facturado;
     totalesPorMoneda[m].diferencia += diferencia;
     totalesPorMoneda[m].iva += ivaEnDiferencia;
+    totalInformativoARS += toARS(c.ventaInformativa, c);
+    totalFacturadoARS += toARS(facturado, c);
+    totalDiferenciaARS += toARS(diferencia, c);
+    totalIvaARS += toARS(ivaEnDiferencia, c);
     const colorDif = Math.abs(diferencia) < 0.01 ? 'inherit' : '#b23a3a';
     return `<tr>
       <td>${c.fecha||'—'}</td>
@@ -4692,7 +4699,18 @@ function renderComparativa(){
     </tr>`;
   }).join('');
   if(resumenDiv){
-    resumenDiv.innerHTML = Object.entries(totalesPorMoneda).map(([m, t])=>{
+    const pctFacturadoARS = totalInformativoARS>0 ? round2(totalFacturadoARS/totalInformativoARS*100) : 0;
+    const pctPendienteARS = totalInformativoARS>0 ? round2(100-pctFacturadoARS) : 0;
+    const cardConsolidado = `<div class="panel" style="margin-bottom:0; grid-column:1/-1; background:#f7faf7">
+      <div class="section-title">Total consolidado en pesos (convertido con el TC de cada compra)</div>
+      <div class="card-line"><span>Facturado vía ARCA</span><b>${fmt(round2(totalFacturadoARS),'ARS')}</b></div>
+      <div class="card-line"><span>Real de facturación (informativo)</span><b>${fmt(round2(totalInformativoARS),'ARS')}</b></div>
+      <div class="card-line total"><span>Diferencia pendiente</span><b>${fmt(round2(totalDiferenciaARS),'ARS')}</b></div>
+      <div class="card-line"><span>IVA incluido en lo pendiente</span><b>${fmt(round2(totalIvaARS),'ARS')}</b></div>
+      <div class="card-line"><span>% ya facturado</span><b>${pctFacturadoARS}%</b></div>
+      <div class="card-line"><span>% pendiente</span><b>${pctPendienteARS}%</b></div>
+    </div>`;
+    const cardsPorMoneda = Object.entries(totalesPorMoneda).map(([m, t])=>{
       const pctFacturado = t.informativo>0 ? round2(t.facturado/t.informativo*100) : 0;
       const pctPendiente = t.informativo>0 ? round2(100-pctFacturado) : 0;
       return `<div class="panel" style="margin-bottom:0">
@@ -4704,6 +4722,7 @@ function renderComparativa(){
         <div class="card-line"><span>% pendiente</span><b>${pctPendiente}%</b></div>
       </div>`;
     }).join('');
+    resumenDiv.innerHTML = cardConsolidado + cardsPorMoneda;
   }
 
   const filasTotal = Object.entries(totalesPorMoneda).map(([m, t])=>`
