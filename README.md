@@ -16,3 +16,4 @@
 - **Celular (Android/Chrome)**: abrís la URL y te aparece "Agregar a pantalla de inicio"
 - **Celular (iPhone/Safari)**: botón compartir → "Agregar a pantalla de inicio"
 - **PC (Chrome/Edge)**: ícono de instalar en la barra de direcciones
+ 
