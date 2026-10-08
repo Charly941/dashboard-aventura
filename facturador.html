@@ -245,6 +245,8 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
     <div class="panel">
       <h2>Facturas emitidas a clientes</h2>
       <p class="hint">Se generan desde el botón "Facturar" en cada fila de Compras. No Computable y Exento se toman igual que en la factura del operador; la diferencia (tu comisión) se reparte en Gravado 21% / 10,5% con la misma proporción que usó el operador.</p>
+      <div style="margin:0 0 14px"><button class="btn moss" onclick="openVentaManualModal()">➕ Cargar venta emitida directo en ARCA</button>
+      <span class="hint" style="margin-left:8px">Para facturas A o B que hiciste en la web de ARCA (no desde acá). Suman en Comparativa y Resumen.</span></div>
       <div id="ventasTableWrap"></div>
     </div>
   </div>
@@ -350,6 +352,78 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
       <button class="btn ghost" onclick="simularEnArca()" id="btnSimularArca">🔍 Simular en ARCA</button>
       <button class="btn ghost" onclick="confirmVenta()" title="Guarda localmente, sin pedir CAE. El número queda pendiente.">Guardar sin ARCA</button>
       <button class="btn moss" onclick="facturarEnArcaReal()" style="background:#8b2f2f" title="Emite la factura real con CAE. Es irreversible.">🔴 Facturar en ARCA (real)</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: cargar a mano una venta ya emitida en ARCA -->
+<div class="modal-bg" id="modalVentaManual" style="display:none">
+  <div class="modal" style="max-width:560px">
+    <h3>Cargar venta emitida directo en ARCA</h3>
+    <p class="hint">Copiá los datos de la factura que ya emitiste en ARCA. No se conecta a ARCA ni genera nada: solo la deja registrada para que sume en Comparativa y Resumen.</p>
+    <div class="field-grid">
+      <div class="field-full">
+        <label>Compra asociada</label>
+        <select id="vmCompra" onchange="vmAlElegirCompra()"></select>
+      </div>
+      <div>
+        <label>Tipo de factura</label>
+        <select id="vmTipo">
+          <option value="B">B</option>
+          <option value="A">A</option>
+        </select>
+      </div>
+      <div>
+        <label>Fecha de la factura</label>
+        <input type="text" id="vmFecha" placeholder="dd/mm/aaaa">
+      </div>
+      <div>
+        <label>Punto de venta</label>
+        <input type="text" id="vmPto" placeholder="ej. 2">
+      </div>
+      <div>
+        <label>N° de comprobante</label>
+        <input type="text" id="vmNro" placeholder="ej. 125">
+      </div>
+      <div class="field-full">
+        <label>CAE (opcional)</label>
+        <input type="text" id="vmCae" placeholder="14 dígitos">
+      </div>
+      <div>
+        <label>Cliente</label>
+        <input type="text" id="vmCliente" placeholder="Nombre y apellido / razón social">
+      </div>
+      <div>
+        <label>CUIT / DNI (opcional en B)</label>
+        <input type="text" id="vmCuit">
+      </div>
+      <div class="field-full" style="border-top:1px dashed var(--line); padding-top:10px; margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-family:var(--sans);text-transform:none">
+          <input type="checkbox" id="vmEsNC" style="width:auto" onchange="vmAlCambiarNC()">
+          Es una Nota de Crédito (resta en vez de sumar)
+        </label>
+      </div>
+      <div class="field-full" id="vmNCWrap" style="display:none">
+        <label>N° de la factura que acredita (opcional)</label>
+        <input type="text" id="vmNCNro" placeholder="ej. 00000125">
+      </div>
+      <div class="hint field-full" style="margin:0">Cargá los importes siempre en positivo, tal cual figuran en la factura de ARCA (en la moneda de la compra). El IVA se calcula solo.</div>
+      <div><label>No Computable</label><input type="text" id="vmNoComp" value="0" oninput="vmRecalcular()"></div>
+      <div><label>Exento</label><input type="text" id="vmExento" value="0" oninput="vmRecalcular()"></div>
+      <div><label>Gravado 21% (neto)</label><input type="text" id="vmGrav21" value="0" oninput="vmRecalcular()"></div>
+      <div><label>Gravado 10,5% (neto)</label><input type="text" id="vmGrav105" value="0" oninput="vmRecalcular()"></div>
+      <div class="field-full">
+        <label>Importe total de la factura</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="vmTotal" placeholder="0.00" oninput="vmTotalManual=true; vmMostrarPreview()">
+          <button class="btn ghost small" type="button" onclick="vmRepartirDesdeTotal()" title="Si solo tenés el total, reparte lo que sobra (total − No Computable − Exento) en gravado, con la misma proporción 21%/10,5% de la compra">Repartir desde el total</button>
+        </div>
+      </div>
+    </div>
+    <div id="vmPreview" style="margin-top:14px"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal('modalVentaManual')">Cancelar</button>
+      <button class="btn moss" onclick="guardarVentaManual()">Guardar venta</button>
     </div>
   </div>
 </div>
@@ -4606,6 +4680,163 @@ async function facturarEnArcaReal(){
   }
 }
 
+// ── Cargar a mano una venta ya emitida directo en ARCA (no llama a ARCA) ──
+let vmTotalManual = false;
+
+function openVentaManualModal(preCompraId){
+  const compras = COMPRAS.filter(c=>!c.esGasto).sort((a,b)=>fechaOrden(b.fecha)-fechaOrden(a.fecha));
+  if(compras.length===0){ toast('Primero cargá la compra (factura del operador)'); return; }
+  const sel = document.getElementById('vmCompra');
+  sel.innerHTML = compras.map(c=>{
+    const txt = (c.fecha||'—')+' · '+(c.operador||'—')+' · '+(c.cliente||'—')+' · '+fmt(c.total,c.moneda);
+    return '<option value="'+c.id+'">'+txt.replace(/</g,'&lt;')+'</option>';
+  }).join('');
+  if(preCompraId) sel.value = String(preCompraId);
+  let pto = '';
+  try{ pto = localStorage.getItem('vm_ultimo_pto')||''; }catch(e){}
+  const hoy = new Date();
+  document.getElementById('vmFecha').value = String(hoy.getDate()).padStart(2,'0')+'/'+String(hoy.getMonth()+1).padStart(2,'0')+'/'+hoy.getFullYear();
+  document.getElementById('vmTipo').value = 'B';
+  document.getElementById('vmPto').value = pto;
+  document.getElementById('vmNro').value = '';
+  document.getElementById('vmCae').value = '';
+  document.getElementById('vmCuit').value = '';
+  document.getElementById('vmEsNC').checked = false;
+  document.getElementById('vmNCNro').value = '';
+  ['vmNoComp','vmExento','vmGrav21','vmGrav105'].forEach(id=>document.getElementById(id).value='0');
+  document.getElementById('vmTotal').value = '';
+  vmTotalManual = false;
+  vmAlCambiarNC();
+  vmAlElegirCompra();
+  document.getElementById('modalVentaManual').style.display='flex';
+}
+
+function vmCompraActual(){
+  return COMPRAS.find(c=>c.id===parseInt(document.getElementById('vmCompra').value,10));
+}
+function vmAlElegirCompra(){
+  const c = vmCompraActual();
+  if(!c) return;
+  document.getElementById('vmCliente').value = c.cliente || '';
+  document.getElementById('vmTipo').value = c.tipoFactura==='A' ? 'A' : 'B';
+  vmMostrarPreview();
+}
+function vmAlCambiarNC(){
+  document.getElementById('vmNCWrap').style.display = document.getElementById('vmEsNC').checked ? '' : 'none';
+}
+
+function vmLeerMontos(){
+  const noComp = Math.abs(parseNum(document.getElementById('vmNoComp').value));
+  const exento = Math.abs(parseNum(document.getElementById('vmExento').value));
+  const grav21 = Math.abs(parseNum(document.getElementById('vmGrav21').value));
+  const grav105 = Math.abs(parseNum(document.getElementById('vmGrav105').value));
+  const iva21 = round2(grav21*0.21);
+  const iva105 = round2(grav105*0.105);
+  const suma = round2(noComp+exento+grav21+grav105+iva21+iva105);
+  return { noComp, exento, grav21, grav105, iva21, iva105, suma };
+}
+
+// Al tocar los importes desglosados, el total se completa solo (salvo que lo hayas escrito vos a mano).
+function vmRecalcular(){
+  const m = vmLeerMontos();
+  if(!vmTotalManual) document.getElementById('vmTotal').value = m.suma || '';
+  vmMostrarPreview();
+}
+
+// Si solo tenés el total: lo que sobra después de No Computable y Exento se reparte como gravado.
+function vmRepartirDesdeTotal(){
+  const c = vmCompraActual();
+  if(!c){ return; }
+  const total = Math.abs(parseNum(document.getElementById('vmTotal').value));
+  if(!total){ toast('Escribí primero el importe total'); return; }
+  const noComp = Math.abs(parseNum(document.getElementById('vmNoComp').value));
+  const exento = Math.abs(parseNum(document.getElementById('vmExento').value));
+  const bruto = round2(total - noComp - exento);
+  if(bruto < 0){ toast('No Computable + Exento superan el total'); return; }
+  const d = desglosarComisionBruta(bruto, c);
+  document.getElementById('vmGrav21').value = round2(d.grav21);
+  document.getElementById('vmGrav105').value = round2(d.grav105);
+  vmTotalManual = true;
+  vmMostrarPreview();
+}
+
+function vmMostrarPreview(){
+  const c = vmCompraActual();
+  const box = document.getElementById('vmPreview');
+  if(!c){ box.innerHTML=''; return; }
+  const m = vmLeerMontos();
+  const total = Math.abs(parseNum(document.getElementById('vmTotal').value));
+  const dif = round2(total - m.suma);
+  const aviso = (total && Math.abs(dif)>0.05)
+    ? '<div class="ocr-note warn">⚠ El total ('+fmt(total,c.moneda)+') no coincide con la suma de los importes + IVA ('+fmt(m.suma,c.moneda)+'). Diferencia: '+fmt(dif,c.moneda)+'</div>'
+    : '';
+  box.innerHTML = `
+    <div class="card-line"><span>IVA 21%</span><b>${fmt(m.iva21,c.moneda)}</b></div>
+    <div class="card-line"><span>IVA 10,5%</span><b>${fmt(m.iva105,c.moneda)}</b></div>
+    <div class="card-line total"><span>Suma de importes + IVA</span><b>${fmt(m.suma,c.moneda)}</b></div>${aviso}`;
+}
+
+function guardarVentaManual(){
+  const c = vmCompraActual();
+  if(!c){ toast('Elegí la compra asociada'); return; }
+  const tipo = document.getElementById('vmTipo').value;
+  const fecha = normalizeFecha(document.getElementById('vmFecha').value);
+  const pto = document.getElementById('vmPto').value.replace(/\D/g,'');
+  const nro = document.getElementById('vmNro').value.replace(/\D/g,'');
+  const cae = document.getElementById('vmCae').value.replace(/\D/g,'');
+  const cliente = document.getElementById('vmCliente').value.trim();
+  const cuit = document.getElementById('vmCuit').value.trim();
+  const esNC = document.getElementById('vmEsNC').checked;
+  const ncNro = document.getElementById('vmNCNro').value.trim();
+  const m = vmLeerMontos();
+  const total = Math.abs(parseNum(document.getElementById('vmTotal').value)) || m.suma;
+  if(!fechaPeriodo(fecha)){ toast('Fecha inválida (usá dd/mm/aaaa)'); return; }
+  if(!pto || !nro){ toast('Completá punto de venta y número de comprobante'); return; }
+  if(tipo==='A' && !cliente){ toast('Factura A: falta el cliente'); return; }
+  if(tipo==='A' && !cuit){ toast('Factura A: falta el CUIT'); return; }
+  if(!total){ toast('Ingresá los importes o el total'); return; }
+  if(Math.abs(total - m.suma) > 0.05){
+    toast('El total no coincide con los importes + IVA. Usá "Repartir desde el total" o corregí los importes.');
+    return;
+  }
+  const nroFactura = pto.padStart(4,'0')+'-'+nro.padStart(8,'0');
+  const repetida = VENTAS.find(v=>v.nroFactura===nroFactura && v.tipoFactura===tipo && !!v.esNotaCredito===esNC);
+  if(repetida && !confirm('Ya hay cargada una '+(esNC?'Nota de Crédito ':'factura ')+tipo+' con el número '+nroFactura+' ('+(repetida.cliente||'—')+'). ¿Querés cargarla igual?')) return;
+  const s = esNC ? -1 : 1;
+  VENTAS.push({
+    id: nextId++, compraId: c.id,
+    nroFactura, tipoFactura: tipo,
+    cae: cae || null, caeVencimiento: null,
+    cliente: tipo==='A' ? cliente : (cliente||'CONSUMIDOR FINAL'), cuit,
+    operador: c.operador,
+    esNotaCredito: esNC, comprobanteAsociadoNro: esNC ? (ncNro||null) : null,
+    fecha,
+    noComp: s*m.noComp, exento: s*m.exento, grav21: s*m.grav21, grav105: s*m.grav105,
+    iva21: s*m.iva21, iva105: s*m.iva105, total: s*total,
+    comisionBruta: s*round2(m.grav21+m.grav105+m.iva21+m.iva105),
+    moneda: c.moneda, tc: c.tc||null,
+    manual: true,
+  });
+  c.tieneVenta = true;
+  try{ localStorage.setItem('vm_ultimo_pto', pto); }catch(e){}
+  closeModal('modalVentaManual');
+  renderPeriodoSelector(); renderCompras(); renderVentas(); renderComparativa(); renderResumen();
+  guardarEstado();
+  toast((esNC?'Nota de Crédito':'Factura')+' '+tipo+' '+nroFactura+' cargada');
+}
+
+// Solo para cargas manuales (por si te equivocaste de dato). Las facturas emitidas desde acá no se borran.
+function borrarVentaManual(id){
+  const v = VENTAS.find(x=>x.id===id);
+  if(!v || !v.manual) return;
+  if(!confirm('¿Quitar del listado la '+(v.esNotaCredito?'Nota de Crédito ':'factura ')+v.tipoFactura+' '+v.nroFactura+'? (Solo la carga en este sistema; en ARCA no cambia nada.)')) return;
+  VENTAS = VENTAS.filter(x=>x.id!==id);
+  const compra = COMPRAS.find(c=>c.id===v.compraId);
+  if(compra) compra.tieneVenta = VENTAS.some(x=>x.compraId===compra.id);
+  renderPeriodoSelector(); renderCompras(); renderVentas(); renderComparativa(); renderResumen();
+  guardarEstado();
+}
+
 function renderVentas(){
   const wrap = document.getElementById('ventasTableWrap');
   const ventasOrdenadas = VENTAS.filter(enPeriodo).sort((a,b)=>fechaOrden(a.fecha)-fechaOrden(b.fecha));
@@ -4622,7 +4853,7 @@ function renderVentas(){
       <td>${v.cuit||'—'}</td>
       <td>${v.operador||'—'}</td>
       <td>${v.nroFactura||'—'}</td>
-      <td>${v.tipoFactura||'—'}</td>
+      <td>${v.tipoFactura||'—'}${v.esNotaCredito?' <span class="tag-pill tag-warn">NC</span>':''}${v.manual?' <span class="tag-pill" title="Emitida directo en ARCA y cargada a mano">ARCA manual</span>':''}</td>
       <td class="num">${fmt(v.noComp,v.moneda)}</td>
       <td class="num">${fmt(v.exento,v.moneda)}</td>
       <td class="num">${fmt(v.grav21,v.moneda)}</td>
@@ -4630,7 +4861,9 @@ function renderVentas(){
       <td class="num">${fmt(v.iva21,v.moneda)}</td>
       <td class="num">${fmt(v.iva105,v.moneda)}</td>
       <td class="num"><b>${fmt(v.total,v.moneda)}</b></td>
-      <td><button class="btn ghost small" onclick="regenerarPDF(${v.id})">📄 PDF</button></td>
+      <td>${v.manual
+        ? '<button class="btn ghost small" onclick="borrarVentaManual('+v.id+')" title="Quitar esta carga manual">🗑</button>'
+        : '<button class="btn ghost small" onclick="regenerarPDF('+v.id+')">📄 PDF</button>'}</td>
     </tr>
   `).join('');
   wrap.innerHTML = `<table><thead><tr>
