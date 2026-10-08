@@ -363,8 +363,18 @@ const __PDFJS_WORKER_CODE__ = "/**\n * @licstart The following is the entire lic
     <p class="hint">Copiá los datos de la factura que ya emitiste en ARCA. No se conecta a ARCA ni genera nada: solo la deja registrada para que sume en Comparativa y Resumen.</p>
     <div class="field-grid">
       <div class="field-full">
-        <label>Compra asociada</label>
+        <label>Compra asociada (opcional)</label>
         <select id="vmCompra" onchange="vmAlElegirCompra()"></select>
+        <div class="hint" style="margin:4px 0 0">Si la dejás en "Sin compra asociada", la venta suma en Resumen mensual e informes, pero no aparece en Comparativa ni toca ninguna compra por facturar.</div>
+      </div>
+      <div class="field-full" id="vmSueltaWrap" style="display:none">
+        <div class="field-grid" style="padding:0">
+          <div><label>Operador / concepto (referencia)</label><input type="text" id="vmOperador" placeholder="ej. Servicio propio"></div>
+          <div><label>Moneda</label>
+            <select id="vmMoneda" onchange="vmAlElegirCompra()"><option value="ARS">Pesos (ARS)</option><option value="USD">Dólares (USD)</option></select>
+          </div>
+          <div id="vmTcWrap" style="display:none"><label>Tipo de cambio</label><input type="text" id="vmTc" placeholder="ej. 1450"></div>
+        </div>
       </div>
       <div>
         <label>Tipo de factura</label>
@@ -4685,13 +4695,16 @@ let vmTotalManual = false;
 
 function openVentaManualModal(preCompraId){
   const compras = COMPRAS.filter(c=>!c.esGasto).sort((a,b)=>fechaOrden(b.fecha)-fechaOrden(a.fecha));
-  if(compras.length===0){ toast('Primero cargá la compra (factura del operador)'); return; }
   const sel = document.getElementById('vmCompra');
-  sel.innerHTML = compras.map(c=>{
+  sel.innerHTML = '<option value="">— Sin compra asociada —</option>' + compras.map(c=>{
     const txt = (c.fecha||'—')+' · '+(c.operador||'—')+' · '+(c.cliente||'—')+' · '+fmt(c.total,c.moneda);
     return '<option value="'+c.id+'">'+txt.replace(/</g,'&lt;')+'</option>';
   }).join('');
-  if(preCompraId) sel.value = String(preCompraId);
+  sel.value = preCompraId ? String(preCompraId) : '';
+  document.getElementById('vmOperador').value = '';
+  document.getElementById('vmMoneda').value = 'ARS';
+  document.getElementById('vmTc').value = '';
+  document.getElementById('vmCliente').value = '';
   let pto = '';
   try{ pto = localStorage.getItem('vm_ultimo_pto')||''; }catch(e){}
   const hoy = new Date();
@@ -4712,13 +4725,25 @@ function openVentaManualModal(preCompraId){
 }
 
 function vmCompraActual(){
-  return COMPRAS.find(c=>c.id===parseInt(document.getElementById('vmCompra').value,10));
+  return COMPRAS.find(c=>c.id===parseInt(document.getElementById('vmCompra').value,10)) || null;
+}
+// Datos que se usan para la venta: salen de la compra elegida, o de los campos manuales si no hay compra.
+function vmContexto(){
+  const c = vmCompraActual();
+  if(c) return { compra:c, moneda:c.moneda||'ARS', tc:c.tc||null, operador:c.operador, base:c };
+  const moneda = document.getElementById('vmMoneda').value;
+  const tc = moneda==='USD' ? (parseNum(document.getElementById('vmTc').value)||null) : null;
+  // Sin compra de referencia, el gravado se reparte todo al 21% (se puede ajustar a mano en los campos).
+  return { compra:null, moneda, tc, operador:document.getElementById('vmOperador').value.trim(), base:{grav21:1, grav105:0} };
 }
 function vmAlElegirCompra(){
   const c = vmCompraActual();
-  if(!c) return;
-  document.getElementById('vmCliente').value = c.cliente || '';
-  document.getElementById('vmTipo').value = c.tipoFactura==='A' ? 'A' : 'B';
+  document.getElementById('vmSueltaWrap').style.display = c ? 'none' : '';
+  document.getElementById('vmTcWrap').style.display = (!c && document.getElementById('vmMoneda').value==='USD') ? '' : 'none';
+  if(c){
+    document.getElementById('vmCliente').value = c.cliente || '';
+    document.getElementById('vmTipo').value = c.tipoFactura==='A' ? 'A' : 'B';
+  }
   vmMostrarPreview();
 }
 function vmAlCambiarNC(){
@@ -4745,15 +4770,14 @@ function vmRecalcular(){
 
 // Si solo tenés el total: lo que sobra después de No Computable y Exento se reparte como gravado.
 function vmRepartirDesdeTotal(){
-  const c = vmCompraActual();
-  if(!c){ return; }
+  const ctx = vmContexto();
   const total = Math.abs(parseNum(document.getElementById('vmTotal').value));
   if(!total){ toast('Escribí primero el importe total'); return; }
   const noComp = Math.abs(parseNum(document.getElementById('vmNoComp').value));
   const exento = Math.abs(parseNum(document.getElementById('vmExento').value));
   const bruto = round2(total - noComp - exento);
   if(bruto < 0){ toast('No Computable + Exento superan el total'); return; }
-  const d = desglosarComisionBruta(bruto, c);
+  const d = desglosarComisionBruta(bruto, ctx.base);
   document.getElementById('vmGrav21').value = round2(d.grav21);
   document.getElementById('vmGrav105').value = round2(d.grav105);
   vmTotalManual = true;
@@ -4761,9 +4785,9 @@ function vmRepartirDesdeTotal(){
 }
 
 function vmMostrarPreview(){
-  const c = vmCompraActual();
+  const ctx = vmContexto();
+  const c = { moneda: ctx.moneda };
   const box = document.getElementById('vmPreview');
-  if(!c){ box.innerHTML=''; return; }
   const m = vmLeerMontos();
   const total = Math.abs(parseNum(document.getElementById('vmTotal').value));
   const dif = round2(total - m.suma);
@@ -4777,8 +4801,9 @@ function vmMostrarPreview(){
 }
 
 function guardarVentaManual(){
-  const c = vmCompraActual();
-  if(!c){ toast('Elegí la compra asociada'); return; }
+  const ctx = vmContexto();
+  const c = ctx.compra; // puede ser null (venta sin compra asociada)
+  if(!c && ctx.moneda==='USD' && !ctx.tc){ toast('Venta en dólares: falta el tipo de cambio'); return; }
   const tipo = document.getElementById('vmTipo').value;
   const fecha = normalizeFecha(document.getElementById('vmFecha').value);
   const pto = document.getElementById('vmPto').value.replace(/\D/g,'');
@@ -4804,20 +4829,20 @@ function guardarVentaManual(){
   if(repetida && !confirm('Ya hay cargada una '+(esNC?'Nota de Crédito ':'factura ')+tipo+' con el número '+nroFactura+' ('+(repetida.cliente||'—')+'). ¿Querés cargarla igual?')) return;
   const s = esNC ? -1 : 1;
   VENTAS.push({
-    id: nextId++, compraId: c.id,
+    id: nextId++, compraId: c ? c.id : null,
     nroFactura, tipoFactura: tipo,
     cae: cae || null, caeVencimiento: null,
     cliente: tipo==='A' ? cliente : (cliente||'CONSUMIDOR FINAL'), cuit,
-    operador: c.operador,
+    operador: ctx.operador || '',
     esNotaCredito: esNC, comprobanteAsociadoNro: esNC ? (ncNro||null) : null,
     fecha,
     noComp: s*m.noComp, exento: s*m.exento, grav21: s*m.grav21, grav105: s*m.grav105,
     iva21: s*m.iva21, iva105: s*m.iva105, total: s*total,
     comisionBruta: s*round2(m.grav21+m.grav105+m.iva21+m.iva105),
-    moneda: c.moneda, tc: c.tc||null,
+    moneda: ctx.moneda, tc: ctx.tc,
     manual: true,
   });
-  c.tieneVenta = true;
+  if(c) c.tieneVenta = true;
   try{ localStorage.setItem('vm_ultimo_pto', pto); }catch(e){}
   closeModal('modalVentaManual');
   renderPeriodoSelector(); renderCompras(); renderVentas(); renderComparativa(); renderResumen();
